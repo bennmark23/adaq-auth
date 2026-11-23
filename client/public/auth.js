@@ -1,8 +1,10 @@
 ﻿'use strict';
 window.__authLoaded = 'start';
-const SERVER_URL = (localStorage.getItem('adaq_server_url') || location.origin).replace(/\/+$/, '');
+const SERVER_URL = (LS('cu', '') || localStorage.getItem('adaq_server_url') || location.origin).replace(/\/+$/, '');
 const API = SERVER_URL + '/api';
 let TOKEN = sessionStorage.getItem('adaq_token') || '';
+// clear legacy localStorage token from old builds
+localStorage.removeItem('adaq_token');
 // remember last user for login screen display
 let LAST_USER = null;
 try { LAST_USER = JSON.parse(localStorage.getItem('adaq_last_user') || 'null'); } catch (e) {}
@@ -293,8 +295,10 @@ async function sendAnnouncement() {
 let ws = null;
 function connectWS() {
   if (ws) try { ws.close(); } catch (e) {}
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  ws = new WebSocket(proto + '//' + location.host + '/?token=' + encodeURIComponent(TOKEN));
+  let base = SERVER_URL;
+  const proto = base.startsWith('https') ? 'wss:' : 'ws:';
+  const host = base.replace(/^https?:\/\//, '');
+  ws = new WebSocket(proto + '//' + host + '/?token=' + encodeURIComponent(TOKEN));
   ws.onmessage = (ev) => {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.type === 'announcement') { loadAnnouncements(); }
@@ -305,6 +309,14 @@ function connectWS() {
 
 // ---- init ----
 async function init() {
+  // Always require login on app open (clear any stored token)
+  sessionStorage.removeItem('adaq_token');
+  TOKEN = '';
+  // If no server URL is set and we're not on web, prompt the user
+  if (!LS('cu', '') && !/^https?:/.test(location.protocol)) {
+    const u = prompt('Enter your ADAQ server URL (e.g. https://adaq-auth.onrender.com):');
+    if (u) { SV('cu', u.trim()); location.reload(); return; }
+  }
   const params = new URLSearchParams(location.search);
   if (params.get('recover') === '1') {
     const t = sessionStorage.getItem('adaq_token');
@@ -337,7 +349,11 @@ async function init() {
   }
   showLogin();
 }
-window.addEventListener('load', init);
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(init, 0);
+} else {
+  window.addEventListener('load', init);
+}
 // session reset on visibility hidden / pagehide
 document.addEventListener('visibilitychange', () => { if (document.hidden) { /* keep token; server tracks last_active */ } });
 window.addEventListener('pagehide', () => { /* optional: logout(); */ });
