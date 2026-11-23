@@ -442,7 +442,7 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-23-v3' }));
 
 // ---- Serve client (static) ----
 const candidates = [
