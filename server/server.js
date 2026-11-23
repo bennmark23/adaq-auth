@@ -319,6 +319,11 @@ app.post('/api/announcements', auth, requireRole('admin', 'subadmin'), (req, res
   res.json({ ok: true });
 });
 
+app.delete('/api/announcements/:id', auth, requireRole('admin', 'subadmin'), (req, res) => {
+  db.prepare('DELETE FROM announcements WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ---- Messages ----
 app.get('/api/messages', auth, (req, res) => {
   // users see messages to them or broadcast (to_user null) from admin/subadmin; admin/subadmin see all
