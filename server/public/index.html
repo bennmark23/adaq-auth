@@ -1,4 +1,4 @@
-﻿ï¿½<!DOCTYPE html>
+﻿??<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -59,18 +59,18 @@ a{color:var(--b)}
 .bd.i,.bd.bear{background:#3a1418;color:#ff8d93}.bd.bull{background:#0f2a21;color:var(--g)}
 small{color:var(--mu)}
 </style></head><body><div id="app" style="display:none">
-<header><b class="logo">ADAQ</b><span id="st" class="mu">connectingâ¬¦</span></header>
+<header><b class="logo">ADAQ</b><span id="st" class="mu">connecting?</span></header>
 <div id="banner" class="ban none"></div>
-<div id="ses"></div>
+<div id="ses"></div><div id="announceWrap" style="margin-bottom:8px"></div>
 
 <section id="v-chart">
  <div id="mbar"></div>
- <div class="row"><b>With Entry Â· coins</b><button id="wescan">Scan</button></div>
+ <div class="row"><b>With Entry coins</b><button id="wescan">Scan</button></div>
  <select id="we" style="width:100%;margin-bottom:8px"><option value="" disabled selected>No Good entry this time</option></select>
- <div class="row"><select id="sym"></select><div class="r"><b id="px" style="font-size:18px">ï¿½</b> <span id="chg"></span></div></div>
+ <div class="row"><select id="sym"></select><div class="r"><b id="px" style="font-size:18px">?</b> <span id="chg"></span></div></div>
  <div id="tfs" class="chips"></div>
  <div id="hv"></div>
- <div class="zm"><button id="zo" aria-label="Zoom out">ï¿½ï¿½</button><button id="zi" aria-label="Zoom in">+</button><button id="zf">Fit</button></div>
+ <div class="zm"><button id="zo" aria-label="Zoom out">??</button><button id="zi" aria-label="Zoom in">+</button><button id="zf">Fit</button></div>
  <canvas id="cv"></canvas>
  <iframe id="mfr" title="Pro chart" style="width:100%;height:420px;border:0;border-radius:12px;display:none"></iframe>
  <div class="row" style="margin-top:8px"><small>Size (USD) saved with each new signal</small><input id="csz" type="number" inputmode="decimal" style="width:130px"></div>
@@ -84,20 +84,20 @@ small{color:var(--mu)}
 
 <section id="v-mm" hidden>
  <div class="card" style="margin:0 0 8px"><b>Safety filter is always on.</b><br><small id="mmn">Only coins listed on CoinGecko with minimum market cap and volume are shown.</small></div>
- <div class="row"><b>With Entry Â· memecoins</b><button id="wescanm">Scan</button></div>
+ <div class="row"><b>With Entry memecoins</b><button id="wescanm">Scan</button></div>
  <select id="wem" style="width:100%;margin-bottom:8px"><option value="" disabled selected>No Good Entry for Memecoin</option></select>
  <div id="mmch" class="chips"></div><div id="mmc"></div>
 </section>
 
 <section id="v-nw" hidden>
- <div id="nwch" class="chips"></div><div id="nwc"><p class="mu">Loading newsâ¬¦</p></div>
+ <div id="nwch" class="chips"></div><div id="nwc"><p class="mu">Loading news?</p></div>
 </section>
 
 <section id="v-tr" hidden>
- <div class="card" style="margin:0"><div class="row" style="margin:0"><div><small>Training Â· unlimited virtual dollars</small><div><b id="tsym">ï¿½</b> <b id="tpx">ï¿½</b></div></div><button id="rst">Reset</button></div></div>
+ <div class="card" style="margin:0"><div class="row" style="margin:0"><div><small>Training  unlimited virtual dollars</small><div><b id="tsym">?</b> <b id="tpx">?</b></div></div><button id="rst">Reset</button></div></div>
  <div class="row" style="margin-top:8px"><b>With Entry</b><button id="wescan2">Scan</button></div>
  <select id="we2" style="width:100%"><option value="" disabled selected>No Good entry this time</option></select>
- <div class="row" style="margin-top:8px"><select id="sym2"></select><select id="tf2"></select><div class="zm" style="margin:0"><button id="zo2" aria-label="Zoom out">ï¿½ï¿½</button><button id="zi2" aria-label="Zoom in">+</button><button id="zf2">Fit</button></div></div>
+ <div class="row" style="margin-top:8px"><select id="sym2"></select><select id="tf2"></select><div class="zm" style="margin:0"><button id="zo2" aria-label="Zoom out">??</button><button id="zi2" aria-label="Zoom in">+</button><button id="zf2">Fit</button></div></div>
  <canvas id="cv2"></canvas>
  <div class="card">
   <div class="sd"><button class="L on" id="sL">Long</button><button class="S" id="sS">Short</button></div>
@@ -127,7 +127,7 @@ small{color:var(--mu)}
    <div class="row" style="margin-top:6px"><input id="syc" placeholder="Sync code"><button id="sya">Apply</button><button id="sycpy">Copy</button></div>
    <small id="syst" style="display:block;margin-top:6px"></small></div>
  <div class="card"><b>Solana RPC for whale data (optional)</b><br><small>The public RPC is rate-limited. A free Helius or QuickNode URL works better.</small>
-  <div class="row" style="margin-top:6px"><input id="rpcu" placeholder="https://â¬¦"><button id="rpcs">Save</button></div></div>
+  <div class="row" style="margin-top:6px"><input id="rpcu" placeholder="https://?"><button id="rpcs">Save</button></div></div>
  <div class="card"><b>News alerts</b>
   <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="na" style="width:auto"> Important news: sound and notification</label>
   <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="nn" style="width:auto"> Normal news: silent notification</label></div>
@@ -244,7 +244,7 @@ const STK=['AAPL','MSFT','NVDA','TSLA','AMZN','GOOGL','META','AMD','SPY','QQQ'];
 const CG='https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&price_change_percentage=24h&sparkline=false';
 const S={sym:LS('sym','BTCUSDT'),tf:LS('tf','15m'),c:[],sig:null,px:0,ws:null,tab:'chart',mk:'picks',mm:'mc',all:false,side:1,atr:0,key:null,ready:false,e20:[],pan:0,vis:0,mint:null,src:'cex',gt:null,gtPair:null,csym:null,pro:false};
 let P=LS('paper',{open:[],closed:[]}),PR={},HS=LS('hist',[]),SYMS2=SYMS.slice();
-const fmt=p=>!isFinite(p)?'ï¿½':p>=1000?p.toLocaleString(undefined,{maximumFractionDigits:2}):p.toFixed(Math.min(10,Math.max(2,5-Math.floor(Math.log10(p||1)))));
+const fmt=p=>!isFinite(p)?'?':p>=1000?p.toLocaleString(undefined,{maximumFractionDigits:2}):p.toFixed(Math.min(10,Math.max(2,5-Math.floor(Math.log10(p||1)))));
 
 function ema(a,n){const k=2/(n+1);let e=a[0];return a.map((v,i)=>(e=i?v*k+e*(1-k):v))}
 function rsi(a,n){const o=[50];let g=0,l=0;for(let i=1;i<a.length;i++){const d=a[i]-a[i-1],G=d>0?d:0,L=d<0?-d:0;if(i<=n){g+=G/n;l+=L/n}else{g=(g*(n-1)+G)/n;l=(l*(n-1)+L)/n}o.push(l?100-100/(1+g/l):100)}return o}
@@ -253,7 +253,7 @@ function atr(c,n){let t=0;return c.map((x,i)=>{const tr=i?Math.max(x.h-x.l,Math.
 async function load(){
  if(S.hv&&(S.hv.sym!==S.sym||S.hv.tf!==S.tf))S.hv=null;
  if(S.ws){S.ws.onclose=null;S.ws.close();S.ws=null}
- S.c=[];S.sig=null;S.ready=false;S.key=null;S.pan=0;$('#st').textContent='loadingâ¬¦';
+ S.c=[];S.sig=null;S.ready=false;S.key=null;S.pan=0;$('#st').textContent='loading?';
  const want=S.sym+'|'+S.tf;let c;
  try{if(S.src==='gt'){if(!S.gt)throw 0;c=await gtKlines(S.gt.net,S.gt.pool,S.tf)}else{const r=await fetch(`${BASE}/klines?symbol=${S.sym}&interval=${S.tf}&limit=300`);if(!r.ok)throw 0;
   c=(await r.json()).map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]}))}if(!c.length)throw 0}
@@ -265,16 +265,16 @@ async function load(){
   $('#st').textContent='no data for '+S.sym;return}
  if(want!==S.sym+'|'+S.tf)return;
  S.c=c;if(S.src!=='gt')S.ok={sym:S.sym,tf:S.tf};S.px=c.at(-1).c;PR[S.sym]=S.px;
- analyze();hvBar();if(S.hv)focusHv();draw();hdr();renderHist();if(S.pro)proSet(true);if(S.src==='gt')$('#st').textContent='ï¿½ï¿½ live (updates every 10s)';else connect();
+ analyze();hvBar();if(S.hv)focusHv();draw();hdr();renderHist();if(S.pro)proSet(true);if(S.src==='gt')$('#st').textContent='?? live (updates every 10s)';else connect();
 }
 function connect(){
  if(S.ws){S.ws.onclose=null;S.ws.close()}
  const ws=S.ws=new WebSocket(`${WSB}${S.sym.toLowerCase()}@kline_${S.tf}`);
- ws.onopen=()=>$('#st').textContent='ï¿½ï¿½ live';
+ ws.onopen=()=>$('#st').textContent='?? live';
  ws.onmessage=e=>{const k=JSON.parse(e.data).k;if(!k)return;const b={t:k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v},L=S.c.at(-1);
   if(L&&L.t===b.t)S.c[S.c.length-1]=b;else{S.c.push(b);if(S.c.length>400)S.c.shift();S.hd=1}
   tick()};
- ws.onclose=()=>{$('#st').textContent='reconnectingâ¬¦';setTimeout(()=>{if(S.ws===ws)connect()},2000)};
+ ws.onclose=()=>{$('#st').textContent='reconnecting?';setTimeout(()=>{if(S.ws===ws)connect()},2000)};
 }
 let raf=0;
 function tick(){S.px=S.c.at(-1).c;PR[S.sym]=S.px;if(!raf)raf=requestAnimationFrame(()=>{raf=0;analyze();draw();hdr();checkPaper();if(S.hd){S.hd=0;renderHist()}if(Date.now()-(S.pl||0)>1000){S.pl=Date.now();updPL()}})}
@@ -336,7 +336,7 @@ function notify(s){
  const t=(s.side>0?'LONG ENTRY ':'SHORT ENTRY ')+lab(S.sym)+' '+S.tf;
  try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator();o.connect(a.destination);o.frequency.value=s.side>0?880:440;o.start();o.stop(a.currentTime+.25)}catch(e){}
  try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}
- try{if(Notification.permission==='granted')new Notification('ADAQ',{body:t+' Â· Entry '+fmt(s.en)+' Â· Stop '+fmt(s.sl)})}catch(e){}
+ try{if(Notification.permission==='granted')new Notification('ADAQ',{body:t+'  Entry '+fmt(s.en)+'  Stop '+fmt(s.sl)})}catch(e){}
 }
 
 function banner(){banner0();if(NW.some(n=>n.imp&&Date.now()-n.t<18e5))$('#banner').insertAdjacentHTML('beforeend','<div class="bl"><span>Important news in the last 30 minutes. Trade with caution.</span></div>')}
@@ -344,7 +344,7 @@ function banner0(){
  const s=S.sig,b=$('#banner');
  if(!s){b.className='ban none';b.innerHTML='<b>Do not enter yet! No good entry right now!</b>';return}
  const L=s.side>0;b.className='ban '+(L?'long':'short');
- b.innerHTML=`<b>${L?'Long Entry':'Short Entry'}</b> <span>${esc(lab(S.sym))} Â· ${S.tf}</span><div class="bl"><span>Entry ${fmt(s.en)}</span><span>Stop ${fmt(s.sl)}</span><span>TP ${fmt(s.tp)}</span><span>Q ${s.q||'ï¿½'}</span></div>`;
+ b.innerHTML=`<b>${L?'Long Entry':'Short Entry'}</b> <span>${esc(lab(S.sym))}  ${S.tf}</span><div class="bl"><span>Entry ${fmt(s.en)}</span><span>Stop ${fmt(s.sl)}</span><span>TP ${fmt(s.tp)}</span><span>Q ${s.q||'?'}</span></div>`;
 }
 function hdr(){
  $('#px').textContent=fmt(S.px);banner();$('#tpx').textContent=fmt(S.px);$('#tsym').textContent=S.sym;
@@ -352,7 +352,7 @@ function hdr(){
  if(!s){p.innerHTML='<b>No setup</b><br><small>Waiting for trend, momentum and volume to line up on '+S.tf+'. Try another timeframe or coin.</small>';return}
  const risk=Math.abs(s.en-s.sl)/s.en*100;
  p.innerHTML=`<b class="${s.side>0?'g':'rd'}">${s.side>0?'Long':'Short'} plan</b>
- <div class="grid" style="margin-top:6px"><div><small>Entry</small><div>${fmt(s.en)}</div></div><div><small>Stop loss</small><div class="rd">${fmt(s.sl)}</div></div><div><small>Take profit</small><div class="g">${fmt(s.tp)}</div></div><div><small>Risk Â· R:R</small><div>${risk.toFixed(2)}% Â· 1:${s.rr||2}</div></div><div><small>Quality</small><div>${s.q||'ï¿½'}/100</div></div><div><small>Size (USD)</small><div>$${(+LS('csz',10000)||0).toLocaleString()}</div></div></div>
+ <div class="grid" style="margin-top:6px"><div><small>Entry</small><div>${fmt(s.en)}</div></div><div><small>Stop loss</small><div class="rd">${fmt(s.sl)}</div></div><div><small>Take profit</small><div class="g">${fmt(s.tp)}</div></div><div><small>Risk  R:R</small><div>${risk.toFixed(2)}%  1:${s.rr||2}</div></div><div><small>Quality</small><div>${s.q||'?'}/100</div></div><div><small>Size (USD)</small><div>$${(+LS('csz',10000)||0).toLocaleString()}</div></div></div>
  <small>Why: EMA20 > EMA50 > EMA200 trend with ADX 20+, pullback to EMA20 then a strong closing candle, RSI ${s.rsi.toFixed(0)}, volume at or above average, stop beyond the recent swing.</small>`;
 }
 
@@ -405,7 +405,7 @@ function picks(d){return d.filter(c=>ch(c)>0&&ch(c)<25&&c.market_cap).map(c=>({c
 async function mk(){
  chips($('#mkch'),[['picks','Top picks'],['gain','Gainers'],['lose','Losers'],['mc','By market cap'],['az','A-Z'],['stk','Stocks']],S.mk,k=>{S.mk=k;mk()});
  const el=$('#mkc');if(S.mk==='stk')return stocks();
- el.innerHTML='<p class="mu">Loadingâ¬¦</p>';let d;
+ el.innerHTML='<p class="mu">Loading?</p>';let d;
  try{d=await cg('top',CG+'&order=market_cap_desc&per_page=100&page=1')}catch(e){el.innerHTML='<p class="mu">Market data is rate-limited. Try again in a minute.</p>';return}
  d=d.filter(c=>c.market_cap>=1e8&&c.total_volume>=1e7);
  if(S.mk==='picks'){const p=picks(d);el.innerHTML=`<div class="row"><b>What to invest now</b><button id="all">${S.all?'Show less':'See all'}</button></div><small>Ranked by 24h momentum and volume strength. Not financial advice.</small>`+(S.all?p:p.slice(0,5)).map(rowH).join('');$('#all').onclick=()=>{S.all=!S.all;mk()}}
@@ -416,16 +416,16 @@ async function memes(){
  if(S.mm==='ch')return enterMeme();
  if(S.mm==='new')return alpha();
  if(S.mm==='wh')return whales();
- const el=$('#mmc');el.innerHTML='<p class="mu">Loadingâ¬¦</p>';let d;
+ const el=$('#mmc');el.innerHTML='<p class="mu">Loading?</p>';let d;
  try{d=await cg('meme',CG+'&category=meme-token&order=market_cap_desc&per_page=60&page=1')}catch(e){el.innerHTML='<p class="mu">Market data is rate-limited. Try again in a minute.</p>';return}
  const ok=d.filter(c=>c.market_cap>=2e7&&c.total_volume>=2e6);
  $('#mmn').textContent=`${ok.length} passed. ${d.length-ok.length} hidden (low market cap or volume). Contract audits need the full backend.`;
- el.innerHTML=sortBy(ok,S.mm).map(c=>`<div>${rowH(c).replace('</b>','</b> <span class="tag">Passed</span>')}<div class="ca" data-id="${esc(c.id)}"><small>Loading CAâ¬¦</small></div></div>`).join('');
+ el.innerHTML=sortBy(ok,S.mm).map(c=>`<div>${rowH(c).replace('</b>','</b> <span class="tag">Passed</span>')}<div class="ca" data-id="${esc(c.id)}"><small>Loading CA?</small></div></div>`).join('');
  const pl=await platforms(ok.map(c=>c.id));
  el.querySelectorAll('.ca').forEach(n=>n.innerHTML=caH(pl[n.dataset.id]||{}));
 }
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),4500)}
-function hvBar(){const el=$('#hv'),h=S.hv;el.innerHTML=h?`<div class="card" style="margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px"><small>Viewing past ${h.side>0?'long':'short'} signal Â· ${esc(lab(h.sym))} ${esc(h.tf)} Â· ${h.out==='open'?'still open':h.out==='tp'?'take profit hit':'stop loss hit'}${Date.now()-h.t>864e5?' Â· lines hidden after 24h':''}</small><button id="hvx">Hide</button></div>`:''}
+function hvBar(){const el=$('#hv'),h=S.hv;el.innerHTML=h?`<div class="card" style="margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px"><small>Viewing past ${h.side>0?'long':'short'} signal  ${esc(lab(h.sym))} ${esc(h.tf)}  ${h.out==='open'?'still open':h.out==='tp'?'take profit hit':'stop loss hit'}${Date.now()-h.t>864e5?'  lines hidden after 24h':''}</small><button id="hvx">Hide</button></div>`:''}
 function focusHv(){const h=S.hv;if(!h)return;const i=S.c.findIndex(k=>k.t===h.t);if(i<0){toast('That signal is older than the loaded candles.');return}const N=vis();S.pan=Math.max(0,S.c.length-Math.min(S.c.length,i+Math.floor(N*.6)));clampPan();draw()}
 function openHist(id){const h=HS.find(x=>x.id===id);if(!h)return;S.hv=h;if(S.pro)proSet(false);window.scrollTo({top:0,behavior:'smooth'});
  if(h.src==='gt'){S.tf=h.tf;selectMeme({symbol:h.sym.split(':').slice(3).join(':'),chain:h.chain,pool:h.pool,addr:'',name:''},true);return}
@@ -440,14 +440,14 @@ function weNotify(f){
  const L=f.s.side>0;
  try{const a=new(window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator();o.connect(a.destination);o.frequency.value=L?880:440;o.start();o.stop(a.currentTime+.25)}catch(e){}
  try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}
- try{if(Notification.permission==='granted')new Notification('ADAQ Â· '+(L?'LONG':'SHORT')+' entry',{body:f.sy+' '+f.tf+' Â· Entry '+fmt(f.s.en)+' Â· Stop '+fmt(f.s.sl)+' Â· TP '+fmt(f.s.tp)})}catch(e){}
+ try{if(Notification.permission==='granted')new Notification('ADAQ  '+(L?'LONG':'SHORT')+' entry',{body:f.sy+' '+f.tf+'  Entry '+fmt(f.s.en)+'  Stop '+fmt(f.s.sl)+'  TP '+fmt(f.s.tp)})}catch(e){}
  toast((L?'LONG':'SHORT')+' entry: '+f.sy.replace('USDT','')+' '+f.tf+'. Open the With Entry list.')}
 function renderWE(){
- const mkEntry=(L,noneLabel)=>`<option value="" disabled selected>${L.length?"Select a good entry now":noneLabel}</option>`+L.map((f,i)=>`<option value="${i}">${f.s.side>0?"LONG":"SHORT"} Â· ${f.sy?esc(f.sy.replace("USDT","")):esc(f.it.symbol)+" ("+esc(f.it.chain)+")"} Â· ${f.tf} Â· ${ago(f.s.t+TFMS[f.tf])}</option>`).join("");
+ const mkEntry=(L,noneLabel)=>`<option value="" disabled selected>${L.length?"Select a good entry now":noneLabel}</option>`+L.map((f,i)=>`<option value="${i}">${f.s.side>0?"LONG":"SHORT"}  ${f.sy?esc(f.sy.replace("USDT","")):esc(f.it.symbol)+" ("+esc(f.it.chain)+")"}  ${f.tf}  ${ago(f.s.t+TFMS[f.tf])}</option>`).join("");
  const a=document.querySelector("#we");if(a)a.innerHTML=mkEntry(S.src==='gt'?WM:WE,S.src==='gt'?"No Good Entry for Memecoin":"No Good entry this time");const b=document.querySelector("#we2");if(b)b.innerHTML=mkEntry(WE,"No Good entry this time");const c=document.querySelector("#wem");if(c)c.innerHTML=mkEntry(WM,"No Good Entry for Memecoin");
  ['wescan','wescan2','wescanm'].forEach(id=>{const x=$('#'+id);if(x)x.textContent='Scan'})}
 async function scanEntries(){
- if(scanning)return;scanning=true;['wescan','wescan2'].forEach(id=>{const b=$('#'+id);if(b)b.textContent='Scanningâ¬¦'});
+ if(scanning)return;scanning=true;['wescan','wescan2'].forEach(id=>{const b=$('#'+id);if(b)b.textContent='Scanning?'});
  const jobs=[];SYMS2.slice(0,40).forEach(sy=>Object.keys(TFMS).forEach(tf=>jobs.push([sy,tf])));const found=[];
  for(let i=0;i<jobs.length;i+=12){
   await Promise.all(jobs.slice(i,i+12).map(async([sy,tf])=>{try{const r=await fetch(`${BASE}/klines?symbol=${sy}&interval=${tf}&limit=250`);if(!r.ok)return;const c=(await r.json()).map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})),sg=activeSig(c);if(sg)found.push({sy,tf,s:sg})}catch(e){}}))}
@@ -456,7 +456,7 @@ async function scanEntries(){
  if(WK&&LS('wa',true))found.filter(f=>!WK.has(f.sy+'|'+f.tf+'|'+f.s.t)).slice(0,3).forEach(weNotify);
  WK=keys;WE=found;scanning=false;renderWE()}
 const lab=s=>{s=String(s);if(s.indexOf('MEME:')!==0)return s;const p=s.split(':');return p.slice(3).join(':')+' ('+p[1]+')'};
-const mc=n=>!n?'ï¿½':'$'+(n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n));
+const mc=n=>!n?'?':'$'+(n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?Math.round(n/1e3)+'K':Math.round(n));
 const GTF={'1m':['minute',1],'5m':['minute',5],'15m':['minute',15],'1h':['hour',1],'4h':['hour',4],'12h':['hour',12],'1d':['day',1]};
 const GTN={solana:'solana',ethereum:'eth',base:'base',bsc:'bsc',arbitrum:'arbitrum',polygon:'polygon_pos',avalanche:'avax'};
 const gtParse=j=>j.data.attributes.ohlcv_list.map(k=>({t:k[0]*1000,o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]})).sort((a,b)=>a.t-b.t);
@@ -475,7 +475,7 @@ async function buildMU(){
 async function loadMU(){if(MUL)return;MUL=true;try{MU=await buildMU()}catch(e){}MUL=false;fillMU()}
 function fillMU(){
  if(S.src!=='gt')return;const cur=S.gt?MU.findIndex(m=>m.addr&&S.gt.addr&&m.addr===S.gt.addr||m.pool&&m.pool===S.gt.pool):-1;
- $('#sym').innerHTML=`<option value="" disabled selected>${MU.length?'Select memecoin (new first, then old by market cap)':'Loading memecoinsâ¬¦'}</option>`+MU.map((m,i)=>`<option value="${i}">${m.kind==='new'?'NEW':'OLD'} Â· ${esc(m.symbol)} Â· ${esc(m.chain)} Â· ${mc(m.mcap)}</option>`).join('');
+ $('#sym').innerHTML=`<option value="" disabled selected>${MU.length?'Select memecoin (new first, then old by market cap)':'Loading memecoins?'}</option>`+MU.map((m,i)=>`<option value="${i}">${m.kind==='new'?'NEW':'OLD'}  ${esc(m.symbol)}  ${esc(m.chain)}  ${mc(m.mcap)}</option>`).join('');
  $('#sym').value=cur>=0?String(cur):''}
 async function ensurePool(it){
  if(it.pool)return;const a=await jget(`https://api.dexscreener.com/tokens/v1/${it.chain}/${it.addr}`);let b=null;
@@ -490,7 +490,7 @@ function proSet(on){
  if(S.pro){const u=proUrl();if(!u){S.pro=false}else{if(f.getAttribute('data-u')!==u){f.src=u;f.setAttribute('data-u',u)}f.style.display='block';cv.style.display='none';z.style.display='none'}}
  if(!S.pro){f.style.display='none';cv.style.display='block';z.style.display='';draw()}
  mBar()}
-function mBar(){$('#mbar').innerHTML=`<div class="row">${S.src==='gt'?'<button id="mback">ï¿½ ï¿½ Memecoin lists</button>':'<span></span>'}<button id="mpro">${S.pro?'ADAQ chart':'Pro chart'}</button></div>`}
+function mBar(){$('#mbar').innerHTML=`<div class="row">${S.src==='gt'?'<button id="mback">? ? Memecoin lists</button>':'<span></span>'}<button id="mpro">${S.pro?'ADAQ chart':'Pro chart'}</button></div>`}
 function toGt(){
  if(S.src!=='gt'){S.csym=S.sym;S.src='gt';proSet(false)}
  if(!GTF[S.tf])S.tf='15m';
@@ -508,7 +508,7 @@ function selectMeme(it,keepHv){
   S.sym='MEME:'+it.chain+':'+it.pool+':'+it.symbol;SV('msel',{gt:S.gt,sym:S.sym});if(!keepHv)S.hv=null;
   fillMU();load();chg()}).catch(()=>toast("Couldn't find a trading pool for "+it.symbol+'.'))}
 async function scanMemes(){
- if(scanningM)return;scanningM=true;['wescanm'].forEach(id=>{const x=$('#'+id);if(x)x.textContent='Scanningâ¬¦'});
+ if(scanningM)return;scanningM=true;['wescanm'].forEach(id=>{const x=$('#'+id);if(x)x.textContent='Scanning?'});
  try{
   if(!MU.length)MU=await buildMU();
   const items=MU.slice(0,8);await Promise.all(items.map(it=>ensurePool(it).catch(()=>{})));
@@ -518,18 +518,18 @@ async function scanMemes(){
    await new Promise(r=>setTimeout(r,1500))}
   found.sort((a,b)=>(b.s.t+TFMS[b.tf])-(a.s.t+TFMS[a.tf]));WM=found}catch(e){}
  scanningM=false;renderWE();fillMU()}
-const pct=(a,b)=>b?Math.round(a/b*100)+'%':'ï¿½';
+const pct=(a,b)=>b?Math.round(a/b*100)+'%':'?';
 const HM=h=>S.src==='gt'?h.src==='gt':!h.src;
 const plVal=h=>{const px=h.out==='open'?PR[h.sym]:h.xp;if(!px||!h.en)return null;const pc=h.side*(px-h.en)/h.en*100;return{pc,usd:h.sz?pc/100*h.sz:null}};
 const plCls=h=>{const v=plVal(h);return v?(v.pc>=0?'g':'rd'):'mu'};
-const plTxt=h=>{const v=plVal(h);if(!v)return 'P/L: waiting for priceâ¬¦';const sg=v.pc>=0?'+':'-';return (h.out==='open'?'Live P/L: ':'Result: ')+sg+Math.abs(v.pc).toFixed(2)+'%'+(v.usd!=null?' Â· '+sg+'$'+Math.abs(v.usd).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'')};
+const plTxt=h=>{const v=plVal(h);if(!v)return 'P/L: waiting for price?';const sg=v.pc>=0?'+':'-';return (h.out==='open'?'Live P/L: ':'Result: ')+sg+Math.abs(v.pc).toFixed(2)+'%'+(v.usd!=null?'  '+sg+'$'+Math.abs(v.usd).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'')};
 function updPL(){document.querySelectorAll('[data-pl]').forEach(el=>{const h=HS.find(x=>x.id===el.dataset.pl);if(!h||h.out!=='open')return;el.textContent=plTxt(h);el.className=plCls(h)})}
 const hCard=h=>{const L=h.side>0,res=h.out==='open'?'Open':h.out==='tp'?'Take profit hit':'Stop loss hit';
- return `<div class="card" data-hv="${esc(h.id)}" style="margin-top:6px;cursor:pointer"><div class="row" style="margin:0"><b class="${L?'g':'rd'}">${L?'Long':'Short'} Â· ${esc(lab(h.sym))} ${esc(h.tf)}</b><span class="bd ${h.out==='tp'?'bull':h.out==='sl'?'bear':''}">${res}</span></div><small>Size ${h.sz?'$'+Math.round(h.sz).toLocaleString():'ï¿½'} Â· Entry ${fmt(h.en)} Â· Stop ${fmt(h.sl)} Â· TP ${fmt(h.tp)}</small><br><small>Signal ${new Date(h.t).toLocaleString()}${h.xt?' Â· Closed '+new Date(h.xt).toLocaleString():''}</small><div data-pl="${esc(h.id)}" class="${plCls(h)}" style="font-weight:600;margin-top:2px">${plTxt(h)}</div>${h.out!=='open'?`<small>${h.out==='tp'?'+'+(h.rr||2)+'R':'-1R'} Â· exit ${fmt(h.xp)}</small>`:''}<div class="row" style="margin:6px 0 0"><small>Tap to view on chart</small><button data-hd="${esc(h.id)}">Delete</button></div></div>`};
+ return `<div class="card" data-hv="${esc(h.id)}" style="margin-top:6px;cursor:pointer"><div class="row" style="margin:0"><b class="${L?'g':'rd'}">${L?'Long':'Short'}  ${esc(lab(h.sym))} ${esc(h.tf)}</b><span class="bd ${h.out==='tp'?'bull':h.out==='sl'?'bear':''}">${res}</span></div><small>Size ${h.sz?'$'+Math.round(h.sz).toLocaleString():'?'}  Entry ${fmt(h.en)}  Stop ${fmt(h.sl)}  TP ${fmt(h.tp)}</small><br><small>Signal ${new Date(h.t).toLocaleString()}${h.xt?'  Closed '+new Date(h.xt).toLocaleString():''}</small><div data-pl="${esc(h.id)}" class="${plCls(h)}" style="font-weight:600;margin-top:2px">${plTxt(h)}</div>${h.out!=='open'?`<small>${h.out==='tp'?'+'+(h.rr||2)+'R':'-1R'}  exit ${fmt(h.xp)}</small>`:''}<div class="row" style="margin:6px 0 0"><small>Tap to view on chart</small><button data-hd="${esc(h.id)}">Delete</button></div></div>`};
 function renderHist(){
  const el=$('#hist');if(!el)return;
  const HL=HS.filter(HM),cl=HL.filter(h=>h.out!=='open'),w=cl.filter(h=>h.out==='tp').length,cur=cl.filter(h=>h.sym===S.sym&&h.tf===S.tf),wc=cur.filter(h=>h.out==='tp').length,b=S.bt||{w:0,l:0};
- el.innerHTML=`<div class="card"><b>Signal accuracy</b><div class="grid" style="margin-top:6px"><div><small>This coin Â· ${esc(S.tf)} (tracked)</small><div style="font-size:18px">${pct(wc,cur.length)} <small>${wc}/${cur.length}</small></div></div><div><small>All tracked signals</small><div style="font-size:18px">${pct(w,cl.length)} <small>${w}/${cl.length}</small></div></div><div><small>Backtest Â· loaded candles</small><div style="font-size:18px">${pct(b.w,b.w+b.l)} <small>${b.w}/${b.w+b.l}</small></div></div><div><small>Open signals</small><div style="font-size:18px">${HL.length-cl.length}</div></div></div><small>Accuracy = signals that hit take profit before stop loss. Past results do not guarantee future results.</small></div><div class="row" style="margin-top:10px"><b>Signal history</b>${HL.length?'<button id="hclr">Clear all</button>':''}</div>`+(HL.length?HL.map(hCard).join(''):'<small>When a signal hits take profit or stop loss, it is logged here with the details.</small>');
+ el.innerHTML=`<div class="card"><b>Signal accuracy</b><div class="grid" style="margin-top:6px"><div><small>This coin  ${esc(S.tf)} (tracked)</small><div style="font-size:18px">${pct(wc,cur.length)} <small>${wc}/${cur.length}</small></div></div><div><small>All tracked signals</small><div style="font-size:18px">${pct(w,cl.length)} <small>${w}/${cl.length}</small></div></div><div><small>Backtest  loaded candles</small><div style="font-size:18px">${pct(b.w,b.w+b.l)} <small>${b.w}/${b.w+b.l}</small></div></div><div><small>Open signals</small><div style="font-size:18px">${HL.length-cl.length}</div></div></div><small>Accuracy = signals that hit take profit before stop loss. Past results do not guarantee future results.</small></div><div class="row" style="margin-top:10px"><b>Signal history</b>${HL.length?'<button id="hclr">Clear all</button>':''}</div>`+(HL.length?HL.map(hCard).join(''):'<small>When a signal hits take profit or stop loss, it is logged here with the details.</small>');
 }
 function fillSyms(){const o=SYMS2.map(x=>`<option>${x}</option>`).join('');$('#sym2').innerHTML=o;$('#sym2').value=S.src==='gt'?(S.csym||'BTCUSDT'):S.sym;if(S.src!=='gt'){$('#sym').innerHTML=o;$('#sym').value=S.sym}}
 async function loadSyms(){try{const a=await jget(BASE+'/ticker/24hr'),l=a.filter(x=>x.symbol.endsWith('USDT')&&!/(UP|DOWN|BULL|BEAR)USDT$/.test(x.symbol)&&+x.quoteVolume>1e6).sort((p,q)=>q.quoteVolume-p.quoteVolume).slice(0,300).map(x=>x.symbol);if(!l.includes(S.sym))l.unshift(S.sym);SYMS2=l;fillSyms()}catch(e){}scanEntries()}
@@ -562,21 +562,21 @@ async function alphaData(){
  hid+=Math.max(0,c1.length-12);list.sort((a,b)=>b.score-a.score||b.v-a.v);
  const d={list,hid,unv};SV('alpha',{t:Date.now(),d});return d}
 let AL=[];
-const alRow=(x,i)=>{const p=x.p,im=p.info&&p.info.imageUrl;return `<div class="row2" data-al="${i}"><div style="display:flex;align-items:center;gap:8px">${im?`<img src="${esc(im)}" width="24" height="24" style="border-radius:50%" alt="" loading="lazy">`:''}<div><b>${esc(p.baseToken.symbol)}</b> <span class="tag">${x.age<24?Math.round(x.age)+'h old':Math.round(x.age/24)+'d old'}</span><br><small>${esc(p.baseToken.name)} Â· ${esc(p.chainId)}</small></div></div><div class="r"><div>$${fmt(+p.priceUsd)}</div><div class="${x.c24>=0?'g':'rd'}">${x.c24.toFixed(1)}%</div><small>Safety ${x.score}</small></div></div>`};
+const alRow=(x,i)=>{const p=x.p,im=p.info&&p.info.imageUrl;return `<div class="row2" data-al="${i}"><div style="display:flex;align-items:center;gap:8px">${im?`<img src="${esc(im)}" width="24" height="24" style="border-radius:50%" alt="" loading="lazy">`:''}<div><b>${esc(p.baseToken.symbol)}</b> <span class="tag">${x.age<24?Math.round(x.age)+'h old':Math.round(x.age/24)+'d old'}</span><br><small>${esc(p.baseToken.name)}  ${esc(p.chainId)}</small></div></div><div class="r"><div>$${fmt(+p.priceUsd)}</div><div class="${x.c24>=0?'g':'rd'}">${x.c24.toFixed(1)}%</div><small>Safety ${x.score}</small></div></div>`};
 async function alpha(){
  const el=$('#mmc');el.innerHTML='<p class="mu">Scanning new launches and checking contracts. This can take 10 to 20 seconds.</p>';
  let d;try{d=await alphaData()}catch(e){el.innerHTML='<p class="mu">Couldn\'t load new launches right now. Try again shortly.</p>';return}
  AL=d.list;
- el.innerHTML=`<div class="card" style="margin:0 0 8px"><b>Alpha / New Â· filtered for safety</b><br><small>Launched in the last 14 days and passed: liquidity of $30k+, volume of $50k+, real selling activity, public website or socials, and an independent contract scan (GoPlus on Base, Ethereum and BNB; RugCheck on Solana). Hidden: ${d.hid} failed filters, ${d.unv} could not be verified. This lowers risk but does not remove it. New memecoins can still go to zero.</small></div>`+(AL.length?AL.map(alRow).join(''):'<p class="mu">Nothing passes the safety filter right now. That is normal. Check back later.</p>');
+ el.innerHTML=`<div class="card" style="margin:0 0 8px"><b>Alpha / New  filtered for safety</b><br><small>Launched in the last 14 days and passed: liquidity of $30k+, volume of $50k+, real selling activity, public website or socials, and an independent contract scan (GoPlus on Base, Ethereum and BNB; RugCheck on Solana). Hidden: ${d.hid} failed filters, ${d.unv} could not be verified. This lowers risk but does not remove it. New memecoins can still go to zero.</small></div>`+(AL.length?AL.map(alRow).join(''):'<p class="mu">Nothing passes the safety filter right now. That is normal. Check back later.</p>');
 }
 function alphaSheet(i){
  const x=AL[i];if(!x)return;const p=x.p,d=$('#dt'),inf=p.info||{},k=x.chk,ad=p.baseToken.address,pcg=p.priceChange||{};
- const M=n=>n==null?'ï¿½':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}),pc=v=>v==null?'ï¿½':`<span class="${v>=0?'g':'rd'}">${v>=0?'+':''}${Math.round(v*10)/10}%</span>`;
+ const M=n=>n==null?'?':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}),pc=v=>v==null?'?':`<span class="${v>=0?'g':'rd'}">${v>=0?'+':''}${Math.round(v*10)/10}%</span>`;
  const lk=[...(inf.websites||[]).map(w=>[w.label||'Website',w.url]),...(inf.socials||[]).map(z=>[z.type,z.url])].filter(l=>/^https?:/.test(l[1]));
  d.hidden=false;
- d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px">${inf.imageUrl?`<img src="${esc(inf.imageUrl)}" width="40" height="40" style="border-radius:50%" alt="">`:''}<div><b style="font-size:17px">${esc(p.baseToken.name)}</b><br><small>${esc(p.baseToken.symbol)} Â· ${esc(p.chainId)} Â· ${x.age<24?Math.round(x.age)+'h':Math.round(x.age/24)+'d'} old</small></div></div><button id="dx">Close</button></div>
+ d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px">${inf.imageUrl?`<img src="${esc(inf.imageUrl)}" width="40" height="40" style="border-radius:50%" alt="">`:''}<div><b style="font-size:17px">${esc(p.baseToken.name)}</b><br><small>${esc(p.baseToken.symbol)}  ${esc(p.chainId)}  ${x.age<24?Math.round(x.age)+'h':Math.round(x.age/24)+'d'} old</small></div></div><button id="dx">Close</button></div>
  <div style="font-size:24px;margin:6px 0">$${fmt(+p.priceUsd)} ${pc(x.c24)}</div>
- <div class="grid"><div><small>Safety score</small><div class="g" style="font-size:18px">${x.score}/100</div></div><div><small>Liquidity</small><div>${M(x.liq)}</div></div><div><small>24h volume</small><div>${M(x.v)}</div></div><div><small>Market cap / FDV</small><div>${M(x.fdv)}</div></div><div><small>Change 1h Â· 6h</small><div>${pc(pcg.h1)} Â· ${pc(pcg.h6)}</div></div><div><small>Buys / sells 24h</small><div>${x.tx.buys} / ${x.tx.sells}</div></div></div>
+ <div class="grid"><div><small>Safety score</small><div class="g" style="font-size:18px">${x.score}/100</div></div><div><small>Liquidity</small><div>${M(x.liq)}</div></div><div><small>24h volume</small><div>${M(x.v)}</div></div><div><small>Market cap / FDV</small><div>${M(x.fdv)}</div></div><div><small>Change 1h  6h</small><div>${pc(pcg.h1)}  ${pc(pcg.h6)}</div></div><div><small>Buys / sells 24h</small><div>${x.tx.buys} / ${x.tx.sells}</div></div></div>
  <div class="card"><b>Contract scan</b> <small>(${esc(k.src)})</small><div class="g">No danger flags found</div>${k.risks.length?`<small>Notes: ${k.risks.map(r=>esc(r)).join(', ')}</small>`:''}${k.lock!=null?`<br><small>Liquidity locked: ${Math.round(k.lock)}%</small>`:''}${k.holders?`<br><small>Holders: ${esc(k.holders)}</small>`:''}</div>
  <div class="ca" style="padding-top:10px"><small>${esc(short(ad))}</small><button data-ca="${esc(ad)}">Copy CA</button><a href="${esc(p.url)}" target="_blank" rel="noopener">DexScreener</a>${lk.map(l=>`<a href="${esc(l[1])}" target="_blank" rel="noopener">${esc(l[0])}</a>`).join('')}</div>
  <small>Copy the CA and search it on Axiom. Check the official links before buying. No scan is a guarantee.</small></div>`;
@@ -630,7 +630,7 @@ function badge(){const s=NS(),c=NW.filter(n=>n.imp&&!s.has(n.id)).length,b=docum
 const ago=t=>{const m=Math.max(0,Math.round((Date.now()-t)/6e4));return m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
 function nCard(n){
  const u=/^https?:/.test(n.url||'')?n.url:'#',sn={bull:'Bullish',bear:'Bearish',neu:'Neutral'}[n.sent];
- return `<a class="nw ${n.imp?'i':''}" href="${esc(u)}" target="_blank" rel="noopener"><div class="m" style="margin:0 0 4px;justify-content:space-between"><span class="bd ${n.imp?'i':''}">${n.imp?'Important Â· '+n.score:'Normal'}</span><span class="mu">${ago(n.t)}</span></div><div><b>${esc(n.title)}</b></div><div class="m">${n.tags.slice(0,3).map(t=>`<span class="bd">${esc(t)}</span>`).join('')}<span class="bd ${n.sent}">${sn}</span><span class="bd ${n.off?'bull':''}">${n.off?'Official':TRUST.test(n.src||'')?'Verified outlet':'Aggregator'}</span><span class="mu" style="margin-left:auto">${esc(n.src)}</span></div></a>`}
+ return `<a class="nw ${n.imp?'i':''}" href="${esc(u)}" target="_blank" rel="noopener"><div class="m" style="margin:0 0 4px;justify-content:space-between"><span class="bd ${n.imp?'i':''}">${n.imp?'Important  '+n.score:'Normal'}</span><span class="mu">${ago(n.t)}</span></div><div><b>${esc(n.title)}</b></div><div class="m">${n.tags.slice(0,3).map(t=>`<span class="bd">${esc(t)}</span>`).join('')}<span class="bd ${n.sent}">${sn}</span><span class="bd ${n.off?'bull':''}">${n.off?'Official':TRUST.test(n.src||'')?'Verified outlet':'Aggregator'}</span><span class="mu" style="margin-left:auto">${esc(n.src)}</span></div></a>`}
 function renderNews(){
  chips($('#nwch'),[['all','All'],['imp','Important'],['nor','Normal'],['off','Official'],['wl','Watchlist'],['cry','Crypto'],['stk','Stocks']],S.nf,k=>{S.nf=k;renderNews()});
  const f=S.nf,a=NW.filter(n=>f==='all'||(f==='imp'&&n.imp)||(f==='nor'&&!n.imp)||(f==='wl'&&n.wl)||(f==='off'&&n.off)||(f==='cry'&&!n.stk)||(f==='stk'&&n.stk)),
@@ -646,14 +646,14 @@ async function platforms(ids){
 function caH(p){
  const k=['solana','base','ethereum','binance-smart-chain'].find(x=>p[x])||Object.keys(p).find(x=>p[x]);
  if(!k)return '<small>CA not listed</small>';const a=p[k];
- return `<small>${esc(k)} Â· ${esc(a.slice(0,6))}â¬¦${esc(a.slice(-4))}</small><button data-ca="${esc(a)}">Copy CA</button>${DX[k]?`<a href="https://dexscreener.com/${DX[k]}/${esc(a)}" target="_blank" rel="noopener">Chart</a>`:''}${k==='solana'?`<button data-w="${esc(a)}">Top holders</button>`:''}`}
+ return `<small>${esc(k)}  ${esc(a.slice(0,6))}?${esc(a.slice(-4))}</small><button data-ca="${esc(a)}">Copy CA</button>${DX[k]?`<a href="https://dexscreener.com/${DX[k]}/${esc(a)}" target="_blank" rel="noopener">Chart</a>`:''}${k==='solana'?`<button data-w="${esc(a)}">Top holders</button>`:''}`}
 function copyTxt(t,b){
  const ok=()=>{if(b){const o=b.textContent;b.textContent='Copied';setTimeout(()=>b.textContent=o,1200)}};
  const fb=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy')}catch(e){}a.remove();ok()};
  if(navigator.clipboard)navigator.clipboard.writeText(t).then(ok,fb);else fb()}
 const rpc=(m,p)=>fetch(LS('rpc','')||'https://api.mainnet-beta.solana.com',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:m,params:p})}).then(r=>r.json()).then(j=>{if(j.error)throw j.error;return j.result});
 let WL=LS('wallets',[]);
-const short=a=>a.slice(0,5)+'â¬¦'+a.slice(-4);
+const short=a=>a.slice(0,5)+'?'+a.slice(-4);
 function whales(){
  $('#mmc').innerHTML=`<div class="card" style="margin:0 0 8px"><small>Whale data is on-chain and slightly delayed. Top holders often include liquidity pools, exchanges and insiders, so check a wallet before copying it. Not financial advice.</small></div>
  <div class="row"><input id="wi" placeholder="Paste a Solana wallet to watch"><button id="wadd">Add</button></div>
@@ -662,27 +662,27 @@ function whales(){
 function renderWL(){$('#wl').innerHTML=WL.length?'<h3>Watched wallets</h3>'+WL.map(w=>`<div class="row2" style="cursor:default"><span>${esc(short(w))}</span><span><button data-h="${esc(w)}">Holdings</button> <button data-unw="${esc(w)}">Remove</button></span></div>`).join(''):''}
 function watch(a){if(!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a))return;if(!WL.includes(a)){WL.push(a);SV('wallets',WL)}renderWL();holdings(a)}
 async function topHolders(mint){
- const el=$('#th');el.innerHTML='<small>Loading holdersâ¬¦</small>';
+ const el=$('#th');el.innerHTML='<small>Loading holders?</small>';
  try{const [la,sp]=await Promise.all([rpc('getTokenLargestAccounts',[mint]),rpc('getTokenSupply',[mint])]);
   const ac=la.value.slice(0,12),inf=await rpc('getMultipleAccounts',[ac.map(a=>a.address),{encoding:'jsonParsed'}]),tot=+sp.value.uiAmount;
   el.innerHTML=`<small>Token ${esc(short(mint))}</small>`+ac.map((a,i)=>{const o=(inf.value[i]&&inf.value[i].data.parsed&&inf.value[i].data.parsed.info.owner)||a.address;return `<div class="row2" style="cursor:default"><span>${esc(short(o))} <small>${(a.uiAmount/tot*100).toFixed(2)}%</small></span><span><button data-h="${esc(o)}">Holdings</button> <button data-watch="${esc(o)}">Watch</button></span></div>`}).join('')}
  catch(e){el.innerHTML='<small class="rd">Couldn\'t load holders. The public Solana RPC is rate-limited. Add a free RPC URL in Settings.</small>'}}
 async function holdings(w){
- const el=$('#wh');el.innerHTML=`<h3>Holdings Â· ${esc(short(w))}</h3><small>Loadingâ¬¦</small>`;
+ const el=$('#wh');el.innerHTML=`<h3>Holdings  ${esc(short(w))}</h3><small>Loading?</small>`;
  try{const [sol,ta]=await Promise.all([rpc('getBalance',[w]),rpc('getTokenAccountsByOwner',[w,{programId:'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'},{encoding:'jsonParsed'}])]);
   const WS='So11111111111111111111111111111111111111112',T=ta.value.map(x=>x.account.data.parsed.info).filter(i=>i.tokenAmount.uiAmount>0).map(i=>({m:i.mint,a:i.tokenAmount.uiAmount}));
   T.push({m:WS,a:sol.value/1e9});const ids=T.slice(0,90),pr={};
   for(let i=0;i<ids.length;i+=30){try{const r=await fetch('https://api.dexscreener.com/tokens/v1/solana/'+ids.slice(i,i+30).map(t=>t.m).join(','));(await r.json()).forEach(p=>{const a=p.baseToken.address,l=(p.liquidity&&p.liquidity.usd)||0;if(!pr[a]||l>pr[a].l)pr[a]={l,p:+p.priceUsd||0,s:p.baseToken.symbol}})}catch(e){}}
   const L=ids.filter(t=>pr[t.m]&&pr[t.m].p).map(t=>({m:t.m,s:pr[t.m].s,v:t.a*pr[t.m].p,l:pr[t.m].l})).sort((a,b)=>b.v-a.v).slice(0,8),tot=L.reduce((a,t)=>a+t.v,0);
-  el.innerHTML=`<h3>Top holdings Â· ${esc(short(w))}</h3>`+(L.length?L.map(t=>`<div class="row2" style="cursor:default"><span><b>${esc(t.s)}</b> <small>${tot?(t.v/tot*100).toFixed(0):0}%</small><br><small>${t.m===WS?'SOL':esc(short(t.m))} Â· liq $${Math.round(t.l).toLocaleString()}</small></span><span class="r">$${Math.round(t.v).toLocaleString()}<br>${t.m===WS?'':`<button data-ca="${esc(t.m)}">Copy CA</button> <a href="https://dexscreener.com/solana/${esc(t.m)}" target="_blank" rel="noopener">Chart</a>`}</span></div>`).join('')+'<small>Share is of the top 8 shown. Low liquidity means you may not be able to sell.</small>':'<small>No priced tokens found.</small>')}
+  el.innerHTML=`<h3>Top holdings  ${esc(short(w))}</h3>`+(L.length?L.map(t=>`<div class="row2" style="cursor:default"><span><b>${esc(t.s)}</b> <small>${tot?(t.v/tot*100).toFixed(0):0}%</small><br><small>${t.m===WS?'SOL':esc(short(t.m))}  liq $${Math.round(t.l).toLocaleString()}</small></span><span class="r">$${Math.round(t.v).toLocaleString()}<br>${t.m===WS?'':`<button data-ca="${esc(t.m)}">Copy CA</button> <a href="https://dexscreener.com/solana/${esc(t.m)}" target="_blank" rel="noopener">Chart</a>`}</span></div>`).join('')+'<small>Share is of the top 8 shown. Low liquidity means you may not be able to sell.</small>':'<small>No priced tokens found.</small>')}
  catch(e){el.innerHTML='<small class="rd">Couldn\'t load this wallet. Check the address or add a free RPC URL in Settings.</small>'}}
 async function showCoin(id){
  const c=CO[id];if(!c)return;const d=$('#dt');d.hidden=false;
- const f=n=>n==null?'ï¿½':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:n<1?8:2}),u=n=>n==null?'ï¿½':Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
- d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px"><img src="${esc(c.image)}" width="40" height="40" style="border-radius:50%" alt=""><div><b style="font-size:17px">${esc(c.name)}</b><br><small>${esc(c.symbol.toUpperCase())} Â· Rank #${c.market_cap_rank||'ï¿½'}</small></div></div><button id="dx">Close</button></div>
+ const f=n=>n==null?'?':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:n<1?8:2}),u=n=>n==null?'?':Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
+ d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px"><img src="${esc(c.image)}" width="40" height="40" style="border-radius:50%" alt=""><div><b style="font-size:17px">${esc(c.name)}</b><br><small>${esc(c.symbol.toUpperCase())}  Rank #${c.market_cap_rank||'?'}</small></div></div><button id="dx">Close</button></div>
  <div style="font-size:24px;margin:6px 0">$${fmt(c.current_price)} <span class="${ch(c)>=0?'g':'rd'}" style="font-size:14px">${ch(c).toFixed(2)}%</span></div>
  <div class="grid"><div><small>Market cap</small><div>${f(c.market_cap)}</div></div><div><small>24h volume</small><div>${f(c.total_volume)}</div></div><div><small>24h high</small><div>${f(c.high_24h)}</div></div><div><small>24h low</small><div>${f(c.low_24h)}</div></div><div><small>All-time high</small><div>${f(c.ath)}</div></div><div><small>From ATH</small><div class="rd">${(c.ath_change_percentage||0).toFixed(1)}%</div></div><div><small>Circulating supply</small><div>${u(c.circulating_supply)}</div></div><div><small>Total supply</small><div>${u(c.total_supply)}</div></div></div>
- <div class="ca" id="dca" style="padding-top:10px"><small>Loading CAâ¬¦</small></div>
+ <div class="ca" id="dca" style="padding-top:10px"><small>Loading CA?</small></div>
  <button id="dch" style="width:100%;margin-top:6px">Open live chart (if listed on Binance)</button></div>`;
  d.onclick=e=>{if(e.target===d)d.hidden=true};$('#dx').onclick=()=>d.hidden=true;$('#dch').onclick=()=>{d.hidden=true;openCoin(c.symbol.toUpperCase())};
  const pl=await platforms([c.id]);if(!d.hidden)$('#dca').innerHTML=caH(pl[c.id]||{})}
@@ -724,9 +724,9 @@ function checkPaper(){
 }
 function renderPos(){
  $('#pos').innerHTML=P.open.length?P.open.map(t=>{const p=PR[t.sym]||t.en,pn=t.side*(p-t.en)*t.q;
-  return `<div class="card" style="margin-top:6px"><div class="row" style="margin:0"><b>${t.sym} ${t.side>0?'Long':'Short'} Â· ${esc(t.tf||'ï¿½')}</b><b class="${pn>=0?'g':'rd'}">${pn>=0?'+':''}$${pn.toFixed(2)}</b></div><small>Size $${Math.round(t.sz||0).toLocaleString()} Â· ${esc(t.tf||'ï¿½')} Â· Entry ${fmt(t.en)} Â· Stop ${fmt(t.sl)}${t.tp?' Â· TP '+fmt(t.tp):''} Â· Now ${fmt(p)}</small><div style="margin-top:6px"><button data-c="${t.id}">Close now</button></div></div>`}).join(''):'<small>No open positions.</small>';
+  return `<div class="card" style="margin-top:6px"><div class="row" style="margin:0"><b>${t.sym} ${t.side>0?'Long':'Short'}  ${esc(t.tf||'?')}</b><b class="${pn>=0?'g':'rd'}">${pn>=0?'+':''}$${pn.toFixed(2)}</b></div><small>Size $${Math.round(t.sz||0).toLocaleString()}  ${esc(t.tf||'?')}  Entry ${fmt(t.en)}  Stop ${fmt(t.sl)}${t.tp?'  TP '+fmt(t.tp):''}  Now ${fmt(p)}</small><div style="margin-top:6px"><button data-c="${t.id}">Close now</button></div></div>`}).join(''):'<small>No open positions.</small>';
  const c=P.closed,w=c.filter(t=>t.pnl>0).length,tot=c.reduce((a,t)=>a+t.pnl,0);
- $('#stats').innerHTML=`<div class="grid"><div><small>Trades</small><div>${c.length}</div></div><div><small>Win rate</small><div>${c.length?Math.round(w/c.length*100):0}%</div></div><div><small>Realized P&L</small><div class="${tot>=0?'g':'rd'}">${tot>=0?'+':''}$${tot.toFixed(2)}</div></div><div><small>Last result</small><div>${c[0]?esc(c[0].why||'Closed'):'ï¿½'}</div></div></div>`;
+ $('#stats').innerHTML=`<div class="grid"><div><small>Trades</small><div>${c.length}</div></div><div><small>Win rate</small><div>${c.length?Math.round(w/c.length*100):0}%</div></div><div><small>Realized P&L</small><div class="${tot>=0?'g':'rd'}">${tot>=0?'+':''}$${tot.toFixed(2)}</div></div><div><small>Last result</small><div>${c[0]?esc(c[0].why||'Closed'):'?'}</div></div></div>`;
 }
 $('#pos').onclick=e=>{const id=+e.target.dataset.c;if(id){const t=P.open.find(x=>x.id===id);closeT(id,PR[t.sym]||t.en,'Closed manually')}};
 let pollN=0;
@@ -796,7 +796,7 @@ $('#we').onchange=pickWE;$('#we2').onchange=pickWE;$('#wem').onchange=pickWM;
 $('#wa').checked=LS('wa',true);$('#wa').onchange=e=>SV('wa',e.target.checked);
 $('#wescan').onclick=scanEntries;$('#wescan2').onclick=scanEntries;$('#wescanm').onclick=scanMemes;setInterval(scanEntries,18e4);setInterval(scanMemes,3e5);
 $('#cu').value=LS('cu','');$('#ct').value=LS('ct','');
-$('#cc').onclick=async()=>{SV('cu',$('#cu').value.trim());SV('ct',$('#ct').value.trim());setCst('Connectingâ¬¦');try{await api('/api/vapid');setCst('Connected. Checking your dataâ¬¦');await syncPull()}catch(e){setCst(e.message)}};
+$('#cc').onclick=async()=>{SV('cu',$('#cu').value.trim());SV('ct',$('#ct').value.trim());setCst('Connecting?');try{await api('/api/vapid');setCst('Connected. Checking your data?');await syncPull()}catch(e){setCst(e.message)}};
 $('#cp').onclick=enablePush;$('#cs').onclick=syncPull;
 $('#ctt').onclick=async()=>{try{const r=await api('/api/test',{method:'POST'});setCst(r.devices?'Test sent to '+r.devices+' device(s).':'No device has push on yet. Tap Enable push first.')}catch(e){setCst(e.message)}};
 document.addEventListener('visibilitychange',()=>{if(!CL().u)return;if(document.hidden){if(dirty)syncPush()}else syncPull()});
@@ -846,7 +846,7 @@ renderPos();load();chg();pollNews();loadSyms();
     <div id="regMsg" style="color:#ea3943;margin-top:8px"></div>
   </div>
 </div>
-<div id="announceBar" style="display:none;position:fixed;top:0;left:0;right:0;background:#f5a524;color:#04140d;padding:8px 12px;z-index:80;font-weight:600"></div>
+<div id="announceBar" style="display:none;background:#f5a524;color:#04140d;padding:8px 12px;border-radius:10px;font-weight:600;margin-bottom:8px"></div>
 <div id="cpModal" class="modal hidden"><div class="sheet">
   <h3>Change Password</h3>
   <input id="cpOld" type="password" placeholder="Old password">
@@ -877,7 +877,10 @@ renderPos();load();chg();pollNews();loadSyms();
   <button onclick="document.getElementById('profileModal').classList.add('hidden')">Close</button>
 </div></div>
 <div id="adminModal" class="modal hidden"><div class="sheet">
-  <h3>Admin</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <h3 style="margin:0">Admins Power</h3>
+    <button onclick="document.getElementById('adminModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button>
+  </div>
   <div class="tabbar">
     <button class="on" onclick="switchAdminTab('users')">Users</button>
     <button onclick="switchAdminTab('activity')">Activity</button>
@@ -893,8 +896,12 @@ renderPos();load();chg();pollNews();loadSyms();
     <div id="inviteOut"></div>
   </div>
   <div id="adminTab_announce" style="display:none">
-    <textarea id="announceInput" style="width:100%;height:80px"></textarea>
-    <button onclick="sendAnnouncement()">Announce</button>
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <textarea id="announceInput" style="flex:1;height:80px"></textarea>
+      <button onclick="sendAnnouncement()" style="align-self:flex-end">Announce</button>
+    </div>
+    <h4 style="margin:12px 0 4px">Past announcements</h4>
+    <div id="pastAnnounceList"></div>
   </div>
   <div id="adminTab_messages" style="display:none">
     <input id="msgTo" placeholder="To user id (blank=broadcast)">
@@ -904,7 +911,7 @@ renderPos();load();chg();pollNews();loadSyms();
     <button onclick="sendMessage()">Send</button>
     <div id="msgList"></div>
   </div>
-  <button onclick="document.getElementById('adminModal').classList.add('hidden')">Close</button>
+  
 </div></div>
 <script>
 function switchAdminTab(t){
@@ -914,6 +921,7 @@ function switchAdminTab(t){
   document.querySelectorAll('#adminModal .tabbar button').forEach((b,i)=>b.classList.toggle('on',['users','activity','invite','announce','messages'][i]===t));
   if(t==='users'||t==='activity') loadAdmin();
   if(t==='messages') loadMessages();
+  if(t==='announce') loadPastAnnouncements();
 }
 </script>
 <script src="auth.js"></script>
@@ -926,6 +934,11 @@ function switchAdminTab(t){
   <button onclick="logout()" style="padding:6px 10px;border-radius:20px">Logout</button>
 </div>
 </body></html>
+
+
+
+
+
 
 
 

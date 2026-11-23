@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 window.__authLoaded = 'start';
 const SERVER_URL = (localStorage.getItem('adaq_server_url') || location.origin).replace(/\/+$/, '');
 const API = SERVER_URL + '/api';
@@ -161,11 +161,26 @@ async function loadAnnouncements() {
   try {
     const r = await api('/announcements');
     const bar = document.getElementById('announceBar');
-    if (!bar) return;
-    const latest = r.announcements && r.announcements[0];
-    if (latest) { bar.textContent = '=� ' + latest.content; bar.style.display = 'block'; }
+    const wrap = document.getElementById('announceWrap');
+    if (!bar || !wrap) return;
+    if (bar.parentElement !== wrap) wrap.appendChild(bar);
+    const now = Date.now();
+    const recent = (r.announcements || []).filter(a => now - a.created_at < 3600000);
+    const latest = recent[0];
+    if (latest) { bar.textContent = 'Announcement: ' + latest.content; bar.style.display = 'block'; }
     else bar.style.display = 'none';
   } catch (e) {}
+}
+async function loadPastAnnouncements() {
+  try {
+    const r = await api('/announcements');
+    const el = document.getElementById('pastAnnounceList');
+    if (!el) return;
+    el.innerHTML = (r.announcements || []).map(a => `<div class="msg-item"><small>${new Date(a.created_at).toLocaleString()}</small> ${escapeHtml(a.content)} <button onclick="deleteAnnouncement(${a.id})" style="float:right">Remove</button></div>`).join('') || '<small>No past announcements.</small>';
+  } catch (e) {}
+}
+async function deleteAnnouncement(id) {
+  try { await api('/announcements/' + id, { method: 'DELETE' }); loadPastAnnouncements(); loadAnnouncements(); } catch (e) { alert(e.message); }
 }
 
 // ---- Messages ----
@@ -174,7 +189,7 @@ async function loadMessages() {
     const r = await api('/messages');
     const list = document.getElementById('msgList');
     if (!list) return;
-    list.innerHTML = (r.messages || []).map(m => `<div class="msg-item"><b>${escapeHtml(m.from_name || '')}</b> <small>${new Date(m.created_at).toLocaleString()}</small><br>${escapeHtml(m.content || '')}${m.image_path ? '<br><img src="' + m.image_path + '" style="max-width:200px">' : ''}${m.pinned ? ' =�' : ''}</div>`).join('');
+    list.innerHTML = (r.messages || []).map(m => `<div class="msg-item"><b>${escapeHtml(m.from_name || '')}</b> <small>${new Date(m.created_at).toLocaleString()}</small><br>${escapeHtml(m.content || '')}${m.image_path ? '<br><img src="' + m.image_path + '" style="max-width:200px">' : ''}${m.pinned ? ' =?' : ''}</div>`).join('');
   } catch (e) {}
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -247,7 +262,7 @@ async function loadAdmin() {
   try {
     const r = await api('/admin/users');
     const el = document.getElementById('adminUsers');
-    if (el) el.innerHTML = (r.users || []).map(u => `<div class="msg-item">${escapeHtml(u.username)} <span class="${u.online ? 'online' : 'offline'}">●</span> <small>${u.role} · ${u.online ? 'online' : 'offline'}</small><br>${u.id !== USER.id && u.role !== 'admin' ? `<button onclick="deleteUser(${u.id})" style="margin-right:4px">Delete</button>` : ''}${u.id !== USER.id ? ` <button onclick="genRecovery(${u.id})">Recovery Link</button>` : ''}<div id="rec_${u.id}" style="word-break:break-all;font-size:11px;margin-top:4px"></div></div>`).join('');
+    if (el) el.innerHTML = (r.users || []).map(u => `<div class="msg-item">${escapeHtml(u.username)} <span class="${u.online ? 'online' : 'offline'}">?</span> <small>${u.role} ? ${u.online ? 'online' : 'offline'}</small><br>${u.id !== USER.id && u.role !== 'admin' ? `<button onclick="deleteUser(${u.id})" style="margin-right:4px">Delete</button>` : ''}${u.id !== USER.id ? ` <button onclick="genRecovery(${u.id})">Recovery Link</button>` : ''}<div id="rec_${u.id}" style="word-break:break-all;font-size:11px;margin-top:4px"></div></div>`).join('');
   } catch (e) {}
   try {
     const r = await api('/admin/activity');
@@ -270,6 +285,7 @@ async function sendAnnouncement() {
     await api('/announcements', { method: 'POST', body: { content: c } });
     document.getElementById('announceInput').value = '';
     loadAnnouncements();
+    loadPastAnnouncements();
   } catch (e) { alert(e.message); }
 }
 
