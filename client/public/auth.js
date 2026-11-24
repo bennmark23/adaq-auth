@@ -41,8 +41,23 @@ function hideLogin() {
 }
 
 // ---- Login ----
+function loginAsRemembered() {
+  const lu = document.getElementById('loginUser');
+  if (LAST_USER && lu) lu.value = LAST_USER.username;
+  // show password + totp, hide remember buttons
+  const rb = document.getElementById('rememberBtns'); if (rb) rb.style.display = 'none';
+  document.getElementById('loginPass').focus();
+}
+function useAnotherAccount() {
+  LAST_USER = null;
+  localStorage.removeItem('adaq_last_user');
+  const rb = document.getElementById('rememberBtns'); if (rb) rb.remove();
+  const av = document.getElementById('loginAvatar'); if (av) av.src = '';
+  const nm = document.getElementById('loginName'); if (nm) nm.textContent = '';
+  document.getElementById('loginUser').style.display = '';
+}
 async function doLogin() {
-  const u = document.getElementById('loginUser').value.trim();
+  const u = ADMIN_MODE ? 'admin' : document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
   const t = document.getElementById('loginTotp').value.trim();
   const msg = document.getElementById('loginMsg');
@@ -355,10 +370,38 @@ function connectWS() {
 }
 
 // ---- init ----
+const ADMIN_MODE = !!window.__ADMIN_MODE;
+
 async function init() {
   // Always require login on app open (clear any stored token)
   sessionStorage.removeItem('adaq_token');
   TOKEN = '';
+  // Admin mode: hide username field, fix to 'admin'
+  if (ADMIN_MODE) {
+    const lu = document.getElementById('loginUser');
+    if (lu) { lu.style.display = 'none'; lu.value = 'admin'; }
+    const lt = document.getElementById('loginTotp');
+    if (lt) lt.placeholder = "What's your favorite snack";
+    const loginName = document.getElementById('loginName');
+    if (loginName) loginName.textContent = 'Admin';
+    const loginAvatar = document.getElementById('loginAvatar');
+    if (loginAvatar) loginAvatar.style.display = 'none';
+  }
+  // Remember me: show last user profile
+  if (!ADMIN_MODE && LAST_USER) {
+    const av = document.getElementById('loginAvatar'); if (av && LAST_USER.avatar) av.src = LAST_USER.avatar;
+    const nm = document.getElementById('loginName'); if (nm) nm.textContent = LAST_USER.username || '';
+    // Add "Login as" / "Use another account" buttons
+    const box = document.getElementById('loginBox');
+    if (box && !document.getElementById('rememberBtns')) {
+      const div = document.createElement('div');
+      div.id = 'rememberBtns';
+      div.style.marginTop = '8px';
+      div.innerHTML = `<button onclick="loginAsRemembered()" style="width:100%;margin-bottom:4px">Login as ${escapeHtml(LAST_USER.username)}</button>
+        <button onclick="useAnotherAccount()" style="width:100%;background:none;border:1px solid var(--bd)">Use another account</button>`;
+      box.insertBefore(div, box.querySelector('button'));
+    }
+  }
   // If no server URL is set and we're not on web, prompt the user
   if (!LS('cu', '') && !/^https?:/.test(location.protocol)) {
     const u = prompt('Enter your ADAQ server URL (e.g. https://adaq-auth.onrender.com):');
@@ -493,6 +536,22 @@ async function genRecoveryLink(id) {
     alert('Recovery link: ' + r.link);
   } catch (e) { alert(e.message); }
 }
+async function loadAdminPath() {
+  try {
+    const r = await api('/admin/admin-path');
+    const el = document.getElementById('adminPathDisplay');
+    if (el) el.textContent = (location.origin) + '/' + r.path;
+  } catch (e) { alert(e.message); }
+}
+async function regenerateAdminPath() {
+  if (!confirm('Regenerate admin link? The old link will stop working.')) return;
+  try {
+    const r = await api('/admin/admin-path/regenerate', { method: 'POST' });
+    const el = document.getElementById('adminPathDisplay');
+    if (el) el.textContent = (location.origin) + '/' + r.path;
+    alert('New admin link: ' + location.origin + '/' + r.path);
+  } catch (e) { alert(e.message); }
+}
 async function loadMeeting() {
   const el = document.getElementById('meetingArea');
   if (!el) return;
@@ -523,6 +582,8 @@ window.deleteUserAccount = deleteUserAccount;
 window.genRecoveryLink = genRecoveryLink;
 window.loadMeeting = loadMeeting;
 window.openMeeting = openMeeting;
+window.loadAdminPath = loadAdminPath;
+window.regenerateAdminPath = regenerateAdminPath;
 
 // expose
 window.doLogin = doLogin; window.logout = logout; window.submitChangePassword = submitChangePassword;

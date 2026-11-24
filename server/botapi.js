@@ -79,6 +79,15 @@ function registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clie
     const existing = db.prepare('SELECT key FROM settings WHERE key=?').get(k);
     if (!existing) db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run(k, v);
   }
+  // Generate admin path if not exists
+  const adminPathSetting = db.prepare('SELECT value FROM settings WHERE key=?').get('admin_path');
+  if (!adminPathSetting) {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let path = '';
+    for (let i = 0; i < 12; i++) path += chars[Math.floor(Math.random() * chars.length)];
+    db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run('admin_path', path);
+    console.log('Generated admin path: /' + path);
+  }
 
   // Helper: public bot info
   function publicBot(b) {
@@ -279,6 +288,22 @@ function registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clie
       }
     }
     res.json({ ok: true });
+  });
+
+  // ---- Admin path (secret login URL) ----
+  app.get('/api/admin/admin-path', auth, requireRole('admin'), (req, res) => {
+    const row = db.prepare('SELECT value FROM settings WHERE key=?').get('admin_path');
+    res.json({ path: row ? row.value : null });
+  });
+  app.post('/api/admin/admin-path/regenerate', auth, requireRole('admin'), (req, res) => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let path = '';
+    for (let i = 0; i < 12; i++) path += chars[Math.floor(Math.random() * chars.length)];
+    const existing = db.prepare('SELECT key FROM settings WHERE key=?').get('admin_path');
+    if (existing) db.prepare('UPDATE settings SET value=? WHERE key=?').run(path, 'admin_path');
+    else db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run('admin_path', path);
+    logActivity(req.user.id, 'admin_path_regenerated', path);
+    res.json({ path });
   });
 
   // ---- Settings ----

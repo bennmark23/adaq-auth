@@ -463,6 +463,13 @@ if (CLIENT_DIR) {
   app.use(express.static(CLIENT_DIR));
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return res.status(404).end();
+    const adminPath = (db.prepare('SELECT value FROM settings WHERE key=?').get('admin_path') || {}).value;
+    if (adminPath && req.path === '/' + adminPath) {
+      // Serve index.html with admin mode flag injected
+      let html = fs.readFileSync(path.join(CLIENT_DIR, 'index.html'), 'utf8');
+      html = html.replace('</head>', '<script>window.__ADMIN_MODE=true;</script></head>');
+      return res.type('html').send(html);
+    }
     res.sendFile(path.join(CLIENT_DIR, 'index.html'));
   });
 } else {

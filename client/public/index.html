@@ -752,7 +752,7 @@ function show(t,keep){
  if(S.src==='gt'&&t!=='mm'&&!keep)exitMeme();
  S.tab=t;['chart','mk','mm','nw','tr','set'].forEach(k=>$('#v-'+k).hidden=k!==t);
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
- if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){switchAdminTab2('bots')}
+ if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}switchAdminTab2('bots')}
 }
 $('#nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
 $('#sym').innerHTML=SYMS.map(s=>`<option>${s}</option>`).join('');$('#sym').value=S.sym;
@@ -888,8 +888,16 @@ renderPos();load();chg();pollNews();loadSyms();
     <button onclick="switchAdminTab('invite')">Invite</button>
     <button onclick="switchAdminTab('announce')">Announce</button>
     <button onclick="switchAdminTab('messages')">Messages</button>
+    <button onclick="switchAdminTab('settings')">Admin Link</button>
   </div>
   <div id="adminTab_users"><div id="adminUsers"></div></div>
+  <div id="adminTab_settings" style="display:none">
+    <h3>Admin Login Link</h3>
+    <small>Your secret admin login URL. Share only with yourself.</small>
+    <div id="adminPathDisplay" style="word-break:break-all;font-family:monospace;margin:8px 0;padding:8px;background:var(--card);border-radius:8px"></div>
+    <button onclick="loadAdminPath()">Refresh</button>
+    <button onclick="regenerateAdminPath()">Regenerate (invalidates old link)</button>
+  </div>
   <div id="adminTab_activity" style="display:none"><div id="adminActivity"></div></div>
   <div id="adminTab_invite" style="display:none">
     <select id="inviteRole"><option value="user">User</option><option value="subadmin">Sub-admin</option></select>
@@ -916,13 +924,15 @@ renderPos();load();chg();pollNews();loadSyms();
 </div></div>
 <script>
 function switchAdminTab(t){
-  ['users','activity','invite','announce','messages'].forEach(x=>{
-    document.getElementById('adminTab_'+x).style.display = x===t?'block':'none';
+  ['users','activity','invite','announce','messages','settings'].forEach(x=>{
+    const el = document.getElementById('adminTab_'+x);
+    if (el) el.style.display = x===t?'block':'none';
   });
-  document.querySelectorAll('#adminModal .tabbar button').forEach((b,i)=>b.classList.toggle('on',['users','activity','invite','announce','messages'][i]===t));
+  document.querySelectorAll('#adminModal .tabbar button').forEach((b,i)=>b.classList.toggle('on',['users','activity','invite','announce','messages','settings'][i]===t));
   if(t==='users'||t==='activity') loadAdmin();
   if(t==='messages') loadMessages();
   if(t==='announce') loadPastAnnouncements();
+  if(t==='settings') loadAdminPath();
 }
 </script>
 <script src="auth.js"></script>
