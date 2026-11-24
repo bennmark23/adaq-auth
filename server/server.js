@@ -167,10 +167,21 @@ function isOnline(uid) { return clients.has(uid) && clients.get(uid).size > 0; }
 
 // ---- Auth ----
 app.post('/api/auth/login', (req, res) => {
-  const { username, password, totp } = req.body || {};
-  const user = db.prepare('SELECT * FROM users WHERE username=?').get(username);
+  const { username, password, totp, adminMode } = req.body || {};
+  // Admin link: only admin/subadmin can login
+  // User link: only user can login (admin/subadmin rejected)
+  let resolvedUsername = username;
+  if (adminMode) resolvedUsername = 'admin'; // fixed username for admin
+  const user = db.prepare('SELECT * FROM users WHERE username=?').get(resolvedUsername);
   if (!user || !bcrypt.compareSync(password || '', user.password_hash)) {
     return res.status(401).json({ error: 'Invalid credentials' });
+  }
+  // Role separation
+  if (adminMode && user.role === 'user') {
+    return res.status(403).json({ error: 'This login is for administrators only.' });
+  }
+  if (!adminMode && (user.role === 'admin' || user.role === 'subadmin')) {
+    return res.status(403).json({ error: 'Please use the administrator login link.' });
   }
   if (user.password_must_change) {
     return res.json({ mustChangePassword: true, token: signToken(user), user: publicUser(user) });
