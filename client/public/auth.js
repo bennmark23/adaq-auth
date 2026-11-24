@@ -372,7 +372,7 @@ function connectWS() {
 }
 
 // ---- init ----
-const ADMIN_MODE = !!window.__ADMIN_MODE;
+const ADMIN_MODE = !!window.__ADMIN_MODE || /^[a-z0-9]{8,16}$/.test(location.pathname.replace(/^\//, ''));
 
 async function init() {
   // Always require login on app open (clear any stored token)
