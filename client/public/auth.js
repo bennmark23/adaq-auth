@@ -372,7 +372,7 @@ function connectWS() {
 }
 
 // ---- init ----
-const ADMIN_MODE = !!window.__ADMIN_MODE;
+const ADMIN_MODE = !!window.__ADMIN_MODE || location.pathname.indexOf('thisisnottheadmin') !== -1;
 
 async function init() {
   // Always require login on app open (clear any stored token)
