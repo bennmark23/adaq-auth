@@ -850,14 +850,14 @@ renderPos();load();chg();pollNews();loadSyms();
 </div>
 <div id="announceBar" style="display:none;background:#f5a524;color:#04140d;padding:8px 12px;border-radius:10px;font-weight:600;margin-bottom:8px"></div>
 <div id="cpModal" class="modal hidden"><div class="sheet">
-  <h3>Change Password</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Change Password</h3><button onclick="document.getElementById('cpModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
   <input id="cpOld" type="password" placeholder="Old password">
   <input id="cpNew" type="password" placeholder="New password">
   <button onclick="submitChangePassword()">Change</button>
   <div id="cpMsg" style="color:#ea3943;margin-top:8px"></div>
 </div></div>
 <div id="enrollModal" class="modal hidden"><div class="sheet">
-  <h3>Set up Authenticator</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Set up Authenticator</h3><button onclick="document.getElementById('enrollModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
   <p>Scan this QR with Google Authenticator, or copy the key.</p>
   <img id="enrollQr" style="width:200px;height:200px">
   <div id="enrollSecret" style="word-break:break-all;font-family:monospace;margin:8px 0"></div>
@@ -866,7 +866,7 @@ renderPos();load();chg();pollNews();loadSyms();
   <div id="enrollMsg" style="color:#ea3943;margin-top:8px"></div>
 </div></div>
 <div id="profileModal" class="modal hidden"><div class="sheet">
-  <h3>Profile</h3>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Profile</h3><button onclick="document.getElementById('profileModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
   <img id="profAvatarImg" class="avatar" src="">
   <input type="file" id="profAvatarFile" accept="image/*">
   <button onclick="uploadAvatar()">Upload Photo</button>
@@ -876,7 +876,6 @@ renderPos();load();chg();pollNews();loadSyms();
   <button onclick="saveProfile()">Save</button>
   <button onclick="document.getElementById('cpModal').classList.remove('hidden')">Change Password</button>
   
-  <button onclick="document.getElementById('profileModal').classList.add('hidden')">Close</button>
 </div></div>
 <div id="adminModal" class="modal hidden"><div class="sheet">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">

@@ -159,8 +159,6 @@ async function afterLogin() {
   // Admin's Features nav item (admin only)
   const adminNav = document.getElementById('adminNavBtn');
   if (adminNav) adminNav.style.display = USER.role === 'admin' ? '' : 'none';
-  // Debug: log role
-  console.log('Logged in as:', USER.username, 'role:', USER.role, 'adminMode:', ADMIN_MODE);
   // profile name
   const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
   const tu = document.getElementById('topUsername'); if (tu) tu.textContent = USER.username;
@@ -375,9 +373,9 @@ function connectWS() {
 const ADMIN_MODE = !!window.__ADMIN_MODE || location.pathname.indexOf('thisisnottheadmin') !== -1;
 
 async function init() {
-  // Always require login on app open (clear any stored token)
-  sessionStorage.removeItem('adaq_token');
-  TOKEN = '';
+  // Keep session on refresh; clear on app close (handled by Electron main.js / OS)
+  TOKEN = sessionStorage.getItem('adaq_token') || '';
+
   // Admin mode: fixed username, permanent avatar, only password + authenticator
   if (ADMIN_MODE) {
     const lu = document.getElementById('loginUser');
