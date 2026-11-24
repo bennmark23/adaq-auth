@@ -444,7 +444,7 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-23-v3' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-24-v4' }));
 
 // Register bot API (must be before the catch-all)
 const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);
