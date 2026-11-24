@@ -492,10 +492,6 @@ if (!fs.existsSync(path.join(CLIENT_DIR, 'index.html'))) {
     return res.status(404).send('Not Found');
   });
 }
-} else {
-  app.get('/', (req, res) => res.status(200).send('<h1>ADAQ server running</h1><p>Client files not found.</p>'));
-  console.error('NO CLIENT DIR FOUND');
-}
 
 // Debug: list all routes
 app.get('/api/debug/routes', (req, res) => {
