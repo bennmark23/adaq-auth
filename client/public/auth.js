@@ -376,30 +376,44 @@ async function init() {
   // Always require login on app open (clear any stored token)
   sessionStorage.removeItem('adaq_token');
   TOKEN = '';
-  // Admin mode: hide username field, fix to 'admin'
+  // Admin mode: fixed username, permanent avatar, only password + authenticator
   if (ADMIN_MODE) {
     const lu = document.getElementById('loginUser');
-    if (lu) { lu.style.display = 'none'; lu.value = 'admin'; }
+    if (lu) { lu.value = 'admin'; lu.readOnly = true; lu.style.display = 'block'; }
     const lt = document.getElementById('loginTotp');
-    if (lt) lt.placeholder = "What's your favorite snack";
+    if (lt) lt.placeholder = "What's your favorite snack?";
+    // permanently fixed admin avatar
+    const loginAvatar = document.getElementById('loginAvatar');
+    if (loginAvatar) { loginAvatar.src = 'icon-192.png'; loginAvatar.style.display = 'block'; }
     const loginName = document.getElementById('loginName');
     if (loginName) loginName.textContent = 'Admin';
-    const loginAvatar = document.getElementById('loginAvatar');
-    if (loginAvatar) loginAvatar.style.display = 'none';
   }
-  // Remember me: show last user profile
-  if (!ADMIN_MODE && LAST_USER) {
-    const av = document.getElementById('loginAvatar'); if (av && LAST_USER.avatar) av.src = LAST_USER.avatar;
-    const nm = document.getElementById('loginName'); if (nm) nm.textContent = LAST_USER.username || '';
-    // Add "Login as" / "Use another account" buttons
-    const box = document.getElementById('loginBox');
-    if (box && !document.getElementById('rememberBtns')) {
-      const div = document.createElement('div');
-      div.id = 'rememberBtns';
-      div.style.marginTop = '8px';
-      div.innerHTML = `<button onclick="loginAsRemembered()" style="width:100%;margin-bottom:4px">Login as ${escapeHtml(LAST_USER.username)}</button>
-        <button onclick="useAnotherAccount()" style="width:100%;background:none;border:1px solid var(--bd)">Use another account</button>`;
-      box.insertBefore(div, box.querySelector('button'));
+  // User mode: remember me
+  if (!ADMIN_MODE) {
+    const lu = document.getElementById('loginUser');
+    if (lu) { lu.value = ''; lu.style.display = 'block'; lu.readOnly = false; }
+    const lt = document.getElementById('loginTotp');
+    if (lt) lt.placeholder = "What's your favorite snack?";
+    const loginAvatar = document.getElementById('loginAvatar');
+    const loginName = document.getElementById('loginName');
+    if (LAST_USER) {
+      if (loginAvatar && LAST_USER.avatar) loginAvatar.src = LAST_USER.avatar;
+      if (loginName) loginName.textContent = LAST_USER.username || '';
+      // Add "Login as" / "Use another account" buttons
+      const box = document.getElementById('loginBox');
+      if (box && !document.getElementById('rememberBtns')) {
+        const div = document.createElement('div');
+        div.id = 'rememberBtns';
+        div.style.marginTop = '8px';
+        div.innerHTML = `<button onclick="loginAsRemembered()" style="width:100%;margin-bottom:4px">Login as ${escapeHtml(LAST_USER.username)}</button>
+          <button onclick="useAnotherAccount()" style="width:100%;background:none;border:1px solid var(--bd)">Use another account</button>`;
+        const btn = box.querySelector('button[onclick="doLogin()"]');
+        if (btn) box.insertBefore(div, btn);
+      }
+    } else {
+      // No prior login: show "Welcome Champ" only
+      if (loginAvatar) loginAvatar.style.display = 'none';
+      if (loginName) loginName.textContent = '';
     }
   }
   // If no server URL is set and we're not on web, prompt the user
