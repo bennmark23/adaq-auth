@@ -381,7 +381,7 @@ async function init() {
     const lu = document.getElementById('loginUser');
     if (lu) { lu.value = 'admin'; lu.readOnly = true; lu.style.display = 'block'; }
     const lt = document.getElementById('loginTotp');
-    if (lt) lt.placeholder = "What's your favorite snack?";
+    if (lt) lt.placeholder = "Whats your favorite snack";
     // permanently fixed admin avatar
     const loginAvatar = document.getElementById('loginAvatar');
     if (loginAvatar) { loginAvatar.src = 'icon-192.png'; loginAvatar.style.display = 'block'; }
@@ -393,7 +393,7 @@ async function init() {
     const lu = document.getElementById('loginUser');
     if (lu) { lu.value = ''; lu.style.display = 'block'; lu.readOnly = false; }
     const lt = document.getElementById('loginTotp');
-    if (lt) lt.placeholder = "What's your favorite snack?";
+    if (lt) lt.placeholder = "Whats your favorite snack";
     const loginAvatar = document.getElementById('loginAvatar');
     const loginName = document.getElementById('loginName');
     if (LAST_USER) {
