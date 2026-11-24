@@ -153,12 +153,13 @@ async function afterLogin() {
   loadAnnouncements();
   // load messages
   loadMessages();
-  // admin panel visibility
+  // Admin panel visibility
   const adminBtn = document.getElementById('adminBtn');
   if (adminBtn) adminBtn.style.display = (USER.role === 'admin' || USER.role === 'subadmin') ? '' : 'none';
   // Admin's Features nav item (admin only)
   const adminNav = document.getElementById('adminNavBtn');
   if (adminNav) adminNav.style.display = USER.role === 'admin' ? '' : 'none';
+  console.log('ADMIN afterLogin: role=', USER.role, 'adminBtn=', adminBtn ? adminBtn.style.display : 'none', 'adminNav=', adminNav ? adminNav.style.display : 'none');
   // profile name
   const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
   const tu = document.getElementById('topUsername'); if (tu) tu.textContent = USER.username;
