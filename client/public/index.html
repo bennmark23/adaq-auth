@@ -120,7 +120,7 @@ small{color:var(--mu)}
  <div class="card"><b>Cloud sync and phone alerts</b><br><small>Needs your ADAQ server. Leave blank to use ADAQ on this device only.</small>
   <div style="margin-top:6px"><small>Server address</small><input id="cu" placeholder="https://your-server.example.com"></div>
   <div style="margin-top:6px"><small>Access token</small><input id="ct" type="password" placeholder="Token from your server"></div>
-  <div class="row" style="margin-top:8px"><button id="cc" style="flex:1">Connect</button><button id="cp" style="flex:1">Enable push</button></div>
+  <div class="row" style="margin-top:8px"><button id="cc" style="flex:1">Connect</button><button id="cp" style="flex:1">Enable push</button></div><small id="srvStatus" style="display:block;margin-top:4px;color:#8791a3"></small>
   <div class="row" style="margin:0"><button id="cs" style="flex:1">Sync now</button><button id="ctt" style="flex:1">Test push</button></div>
   <small id="cst" style="display:block;margin-top:6px"></small></div>
   <div class="card"><b>Realtime sync (works anywhere)</b><br><small>Use the same code on each device. Settings, paper trades, wallets and signal history update within seconds. No account needed.</small>
@@ -140,7 +140,7 @@ small{color:var(--mu)}
 </section>
 
 <div id="dt" hidden></div>
-<nav id="nav"><button data-t="chart" class="on">Chart</button><button data-t="mk">Markets</button><button data-t="mm">Memes</button><button data-t="nw">News</button><button data-t="tr">Training</button><button data-t="set">Settings</button></nav>
+<nav id="nav"><button data-t="chart" class="on">Chart</button><button data-t="mk">Markets</button><button data-t="mm">Memes</button><button data-t="nw">News</button><button data-t="tr">Training</button><button data-t="set">Settings</button><button data-t="admin" id="adminNavBtn" style="display:none">Admins Features</button></nav>
 </div>
 <script src="mqtt.min.js"></script>
 <script>
@@ -752,7 +752,7 @@ function show(t,keep){
  if(S.src==='gt'&&t!=='mm'&&!keep)exitMeme();
  S.tab=t;['chart','mk','mm','nw','tr','set'].forEach(k=>$('#v-'+k).hidden=k!==t);
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
- if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}
+ if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){switchAdminTab2('bots')}
 }
 $('#nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
 $('#sym').innerHTML=SYMS.map(s=>`<option>${s}</option>`).join('');$('#sym').value=S.sym;
@@ -796,13 +796,14 @@ $('#we').onchange=pickWE;$('#we2').onchange=pickWE;$('#wem').onchange=pickWM;
 $('#wa').checked=LS('wa',true);$('#wa').onchange=e=>SV('wa',e.target.checked);
 $('#wescan').onclick=scanEntries;$('#wescan2').onclick=scanEntries;$('#wescanm').onclick=scanMemes;setInterval(scanEntries,18e4);setInterval(scanMemes,3e5);
 $('#cu').value=LS('cu','');$('#ct').value=LS('ct','');
-$('#cc').onclick=async()=>{SV('cu',$('#cu').value.trim());SV('ct',$('#ct').value.trim());setCst('Connecting?');try{await api('/api/vapid');setCst('Connected. Checking your data?');await syncPull()}catch(e){setCst(e.message)}};
+$('#cc').onclick=async()=>{SV('cu',$('#cu').value.trim());SV('ct',$('#ct').value.trim());setCst('Connecting...');const ss=document.getElementById('srvStatus');try{await api('/health');setCst('Connected.');if(ss){ss.textContent='Server address applied: '+$('#cu').value.trim();ss.style.color='#16c784'}loadAnnouncements();connectWS()}catch(e){setCst(e.message);if(ss){ss.textContent='Connection failed';ss.style.color='#ea3943'}}};
 $('#cp').onclick=enablePush;$('#cs').onclick=syncPull;
 $('#ctt').onclick=async()=>{try{const r=await api('/api/test',{method:'POST'});setCst(r.devices?'Test sent to '+r.devices+' device(s).':'No device has push on yet. Tap Enable push first.')}catch(e){setCst(e.message)}};
 document.addEventListener('visibilitychange',()=>{if(!CL().u)return;if(document.hidden){if(dirty)syncPush()}else syncPull()});
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 if(/^https?:/.test(location.protocol)&&!LS('cu',''))fetch('/api/health').then(r=>r.json()).then(j=>{if(j&&j.adaq){SV('cu',location.origin);$('#cu').value=location.origin}}).catch(()=>{});
 if(CL().u)syncPull();
+const _ss=document.getElementById('srvStatus');if(_ss&&LS('cu','')){_ss.textContent='Server address applied: '+LS('cu','');_ss.style.color='#16c784'}
 syInit();
 $('#sya').onclick=()=>{const c=$('#syc').value.trim().replace(/[^A-Za-z0-9_-]/g,'');if(!c){syStat('Enter a sync code');return}SV('sycode',c);SV('sycustom',true);SV('syts',0);syConnect()};
 $('#sycpy').onclick=async()=>{try{await navigator.clipboard.writeText($('#syc').value);syStat('Code copied')}catch(e){syStat('Select and copy the code above')}};
@@ -925,7 +926,35 @@ function switchAdminTab(t){
 }
 </script>
 <script src="auth.js"></script>
-<div style="position:fixed;top:8px;right:12px;display:flex;align-items:center;gap:8px;z-index:70">
+<section id="v-admin" hidden>
+  <div class="tabbar">
+    <button class="on" onclick="switchAdminTab2('bots')">Bots</button>
+    <button onclick="switchAdminTab2('users')">Users</button>
+    <button onclick="switchAdminTab2('reports')">Reports</button>
+    <button onclick="switchAdminTab2('meeting')">Meeting Room</button>
+  </div>
+  <div id="adminTab2_bots">
+    <h3>Bots</h3>
+    <div id="botsList"><small>Loading...</small></div>
+  </div>
+  <div id="adminTab2_users" style="display:none">
+    <h3>Users</h3>
+    <div id="usersList"><small>Loading...</small></div>
+  </div>
+  <div id="adminTab2_reports" style="display:none">
+    <h3>Reports</h3>
+    <div style="margin-bottom:8px">
+      <select id="reportFilter"><option value="">All</option><option value="new">Unread</option><option value="read">Read</option><option value="done">Done</option><option value="to_priority">Priority</option></select>
+      <select id="reportTypeFilter"><option value="">All types</option></select>
+    </div>
+    <div id="reportsList"><small>Loading...</small></div>
+  </div>
+  <div id="adminTab2_meeting" style="display:none">
+    <h3>Meeting Room</h3>
+    <div id="meetingArea"><small>No active meeting.</small></div>
+    <button onclick="openMeeting()" style="margin-top:8px">Open Meeting</button>
+  </div>
+</section><div style="position:fixed;top:8px;right:12px;display:flex;align-items:center;gap:8px;z-index:70">
   <button id="adminBtn" onclick="document.getElementById('adminModal').classList.remove('hidden');loadAdmin()" style="padding:6px 10px;border-radius:20px;display:none">Admins Power</button>
   <button id="profileTopBtn" onclick="document.getElementById('profileModal').classList.remove('hidden')" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;background:var(--card);border:1px solid var(--bd);cursor:pointer">
     <img id="topAvatar" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#232c3b">
@@ -934,6 +963,8 @@ function switchAdminTab(t){
   <button onclick="logout()" style="padding:6px 10px;border-radius:20px">Logout</button>
 </div>
 </body></html>
+
+
 
 
 

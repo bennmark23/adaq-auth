@@ -12,6 +12,8 @@ const cors = require('cors');
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('fs');
 const path = require('path');
+const { registerBotApi } = require('./botapi');
+const { initScheduler } = require('./scheduler');
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'adaq-jwt-change-me-in-prod';
@@ -444,7 +446,10 @@ app.post('/api/activity', auth, (req, res) => {
 // ---- Health check ----
 app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-23-v3' }));
 
-// ---- Serve client (static) ----
+// Register bot API (must be before the catch-all)
+const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);
+
+// ---- Serve client (static) - AFTER all API routes ----
 const candidates = [
   path.join(__dirname, 'public'),
   path.join(process.cwd(), 'public'),
@@ -453,7 +458,6 @@ const candidates = [
   path.join(process.cwd(), 'client', 'public'),
 ];
 const CLIENT_DIR = candidates.find(p => fs.existsSync(path.join(p, 'index.html')));
-console.log('CLIENT_DIR candidates:', candidates);
 console.log('CLIENT_DIR resolved:', CLIENT_DIR);
 if (CLIENT_DIR) {
   app.use(express.static(CLIENT_DIR));
@@ -462,8 +466,38 @@ if (CLIENT_DIR) {
     res.sendFile(path.join(CLIENT_DIR, 'index.html'));
   });
 } else {
-  app.get('/', (req, res) => res.status(200).send('<h1>ADAQ server running</h1><p>Client files not found. Check deployment.</p><p>Looked in: ' + candidates.join(', ') + '</p>'));
+  app.get('/', (req, res) => res.status(200).send('<h1>ADAQ server running</h1><p>Client files not found.</p>'));
   console.error('NO CLIENT DIR FOUND');
 }
+
+// Debug: list all routes
+app.get('/api/debug/routes', (req, res) => {
+  const routes = app._router.stack.filter(s => s.route).map(s => ({ path: s.route.path, methods: Object.keys(s.route.methods) }));
+  res.json({ routes });
+});
+
+// Nightly cleanup of old activity logs and reports
+setInterval(() => {
+  const retentionDays = parseInt((db.prepare('SELECT value FROM settings WHERE key=?').get('logRetentionDays') || { value: '14' }).value, 10);
+  const cutoff = Date.now() - retentionDays * 24 * 3600 * 1000;
+  db.prepare('DELETE FROM activity_log WHERE created_at < ?').run(cutoff);
+  // Delete done reports older than 7 days
+  db.prepare("DELETE FROM reports WHERE status='done' AND done_at < ?").run(Date.now() - 7 * 24 * 3600 * 1000);
+}, 3600000); // every hour
+
+// Seed a daily report from Mr. Admin on startup (demo)
+try {
+  const existing = db.prepare('SELECT id FROM reports WHERE type=?').get('Daily Master Prompt Report');
+  if (!existing) {
+    db.prepare('INSERT INTO reports (type,title,body,author_bot,severity,status,created_at) VALUES (?,?,?,?,?,?,?)').run(
+      'Daily Master Prompt Report', 'Daily Master Prompt Report',
+      '## Daily Summary\n\nAll bots are operational. No issues detected.\n\n### Bot Status\n- Mr. Admin: Online\n- Mr. Monkey: Online\n- Mr. Hunter: Online\n- Mr. Designer: Online\n- Mr. Chart: Online\n- Mrs. Stoploss: Online\n- Mr. Take Profit: Online\n- Mrs. QA: Online\n- Mr. Whitehack: Online\n\n### Recommendations\n- Continue monitoring.',
+      'mr_admin', 'normal', 'new', Date.now()
+    );
+  }
+} catch (e) { console.log('Seed report error:', e.message); }
+
+// Initialize scheduler
+initScheduler(db, logActivity);
 
 server.listen(PORT, () => console.log(`ADAQ auth server on http://localhost:${PORT}`));

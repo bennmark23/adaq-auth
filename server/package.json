@@ -3,16 +3,19 @@
   "version": "1.0.0",
   "description": "ADAQ account/auth/sync server (TOTP Google Authenticator)",
   "main": "server.js",
-  "scripts": { "start": "node server.js", "build": "node -e \"const fs=require('fs');const path=require('path');const src=path.join('..','client','public');const dst=path.join('public');if(!fs.existsSync(src)){console.log('no client src');process.exit(0)};fs.rmSync(dst,{recursive:true,force:true});fs.cpSync(src,dst,{recursive:true});console.log('client copied to',dst)\"" },
+  "scripts": {
+    "start": "node server.js",
+    "build": "node -e \"const fs=require('fs');const path=require('path');const src=path.join('..','client','public');const dst=path.join('public');if(!fs.existsSync(src)){console.log('no client src');process.exit(0)};fs.rmSync(dst,{recursive:true,force:true});fs.cpSync(src,dst,{recursive:true});console.log('client copied to',dst)\""
+  },
   "dependencies": {
-    "express": "^4.19.2",
-
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^4.6.0",
     "otplib": "^12.0.1",
     "qrcode": "^1.5.4",
-    "multer": "^1.4.5-lts.1",
-    "ws": "^8.18.0",
-    "cors": "^2.8.5"
+    "ws": "^8.18.0"
   }
 }
