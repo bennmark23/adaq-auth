@@ -11,7 +11,8 @@
   </div>
 </div>
 <script>
-const API = (location.origin) + '/api';
+const SERVER_URL = (function(){ try { const cu = JSON.parse(localStorage.getItem('cu')||'""'); if (cu) return String(cu).replace(/\/+$/,''); } catch(e){} return localStorage.getItem('adaq_server_url') || location.origin; })().replace(/\/+$/,'');
+const API = SERVER_URL + '/api';
 const token = new URLSearchParams(location.search).get('token');
 async function doRecover() {
   const msg = document.getElementById('recMsg');
