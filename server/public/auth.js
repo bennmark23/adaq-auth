@@ -63,7 +63,7 @@ async function doLogin() {
   const msg = document.getElementById('loginMsg');
   msg.textContent = '';
   try {
-    const r = await api('/auth/login', { method: 'POST', body: { username: u, password: p, totp: t } });
+    const r = await api('/auth/login', { method: 'POST', body: { username: u, password: p, totp: t, adminMode: ADMIN_MODE } });
     if (r.mustChangePassword) { TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user; hideLogin(); showChangePassword(); return; }
     if (r.needsTotpEnroll) { TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user; hideLogin(); showEnroll(r); return; }
     if (r.totpRequired) { msg.textContent = 'TOTP code required'; return; }
@@ -159,6 +159,8 @@ async function afterLogin() {
   // Admin's Features nav item (admin only)
   const adminNav = document.getElementById('adminNavBtn');
   if (adminNav) adminNav.style.display = USER.role === 'admin' ? '' : 'none';
+  // Debug: log role
+  console.log('Logged in as:', USER.username, 'role:', USER.role, 'adminMode:', ADMIN_MODE);
   // profile name
   const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
   const tu = document.getElementById('topUsername'); if (tu) tu.textContent = USER.username;
@@ -370,7 +372,7 @@ function connectWS() {
 }
 
 // ---- init ----
-const ADMIN_MODE = !!window.__ADMIN_MODE;
+const ADMIN_MODE = !!window.__ADMIN_MODE || location.pathname.indexOf('thisisnottheadmin') !== -1;
 
 async function init() {
   // Always require login on app open (clear any stored token)
