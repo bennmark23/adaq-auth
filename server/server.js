@@ -479,6 +479,8 @@ if (CLIENT_DIR) {
       // Serve index.html with admin mode flag injected
       let html = fs.readFileSync(path.join(CLIENT_DIR, 'index.html'), 'utf8');
       html = html.replace('</head>', '<script>window.__ADMIN_MODE=true;</script></head>');
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.set('Pragma', 'no-cache');
       return res.type('html').send(html);
     }
     res.sendFile(path.join(CLIENT_DIR, 'index.html'));
