@@ -79,14 +79,12 @@ function registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clie
     const existing = db.prepare('SELECT key FROM settings WHERE key=?').get(k);
     if (!existing) db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run(k, v);
   }
-  // Generate admin path if not exists
+  // Admin path: fixed to 'thisisnottheadmin' for security (not /admin)
   const adminPathSetting = db.prepare('SELECT value FROM settings WHERE key=?').get('admin_path');
-  if (!adminPathSetting) {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    let path = '';
-    for (let i = 0; i < 12; i++) path += chars[Math.floor(Math.random() * chars.length)];
-    db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run('admin_path', path);
-    console.log('Generated admin path: /' + path);
+  if (!adminPathSetting || adminPathSetting.value !== 'thisisnottheadmin') {
+    if (adminPathSetting) db.prepare('UPDATE settings SET value=? WHERE key=?').run('thisisnottheadmin', 'admin_path');
+    else db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run('admin_path', 'thisisnottheadmin');
+    console.log('Admin path set to: /thisisnottheadmin');
   }
 
   // Helper: public bot info
