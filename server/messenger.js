@@ -1,4 +1,24 @@
 'use strict';
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const CHAT_UPLOADS = path.join(__dirname, 'data', 'chat_uploads');
+if (!fs.existsSync(CHAT_UPLOADS)) fs.mkdirSync(CHAT_UPLOADS, { recursive: true });
+const chatUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, CHAT_UPLOADS),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname || '').replace(/[^.a-zA-Z0-9]/g, '').slice(0, 10);
+      cb(null, crypto.randomBytes(12).toString('hex') + ext);
+    }
+  }),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /^(image\/|video\/|audio\/|text\/|application\/(pdf|msword|vnd\.openxmlformats-officedocument|zip|octet-stream))/.test(file.mimetype || '');
+    cb(ok ? null : new Error('Unsupported file type'), ok);
+  }
+});
 // Phase 1: data model + permission helpers for the in-house Messenger.
 // Tables are prefixed chat_* so they never collide with the existing admin
 // `messages` table or the bots' `reports` table.
@@ -157,6 +177,39 @@ function emitChat(broadcast, db, convId, type, data) {
 }
 function registerRoutes(app, db, auth, broadcast) {
   const A = [auth];
+  app.use('/chat_uploads', (req, res, next) => {
+    const file = req.path.replace(/^\/+/, '');
+    if (!/^[a-f0-9]{24}\.[a-zA-Z0-9]{1,10}$/.test(file)) return res.status(400).end();
+    res.sendFile(path.join(CHAT_UPLOADS, file), err => { if (err && !res.headersSent) res.status(404).end(); });
+  });
+  app.post('/api/chat/conversations/:id/media', ...A, chatUpload.single('file'), async (req, res) => {
+    const id = Number(req.params.id);
+    assertConversationAccess(db, req.user.id, id);
+    if (!rateOk(req.user.id)) return res.status(429).json({ error: 'Too many uploads. Slow down.' });
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const f = req.file;
+    const mime = f.mimetype || '';
+    const kind = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'voice' : 'file';
+    const url = '/chat_uploads/' + f.filename;
+    let thumb = '';
+    if (kind === 'image') {
+      try {
+        const sharp = require('sharp');
+        const tname = f.filename.replace(/(\.[^.]+)?$/, '') + '_thumb.jpg';
+        await sharp(f.path).resize(320, 320, { fit: 'inside' }).jpeg({ quality: 70 }).toFile(path.join(CHAT_UPLOADS, tname));
+        thumb = '/chat_uploads/' + tname;
+      } catch (e) { console.log('thumb failed:', e.message); }
+    }
+    const now = Date.now();
+    const info = db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, kind, url, now);
+    db.prepare('INSERT INTO chat_attachments (message_id,kind,path,mime,name,size,thumbnail,created_at) VALUES (?,?,?,?,?,?,?,?)')
+      .run(Number(info.lastInsertRowid), kind, url, mime, String(f.originalname || '').slice(0, 160), f.size, thumb || null, now);
+    db.prepare('UPDATE chat_conversations SET last_message_at=?,last_message_preview=? WHERE id=?').run(now, kind === 'file' ? 'File' : kind, id);
+    db.prepare('UPDATE chat_members SET unread_count=unread_count+1 WHERE conversation_id=? AND user_id<>?').run(id, req.user.id);
+    const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(info.lastInsertRowid));
+    emitChat(broadcast, db, id, 'chat_message', msg);
+    res.json({ message: msg, attachment: { path: url, thumbnail: thumb } });
+  });
   app.get('/api/chat/unread', ...A, (req, res) => {
     const r = db.prepare('SELECT COALESCE(SUM(unread_count),0) AS c FROM chat_members WHERE user_id=? AND archived=0 AND deleted_for_me=0').get(req.user.id);
     res.json({ unread: r.c });
@@ -194,7 +247,8 @@ function registerRoutes(app, db, auth, broadcast) {
     const out = rows.map(m => {
       if (db.prepare('SELECT 1 FROM chat_message_deletes WHERE message_id=? AND user_id=?').get(m.id, req.user.id)) return null;
       const reactions = db.prepare('SELECT emoji,COUNT(*) AS n FROM chat_reactions WHERE message_id=? GROUP BY emoji').all(m.id).map(r => ({ emoji: r.emoji, n: r.n }));
-      return { ...m, reactions };
+      const att = db.prepare('SELECT * FROM chat_attachments WHERE message_id=?').get(m.id);
+      return { ...m, reactions, attachment: att ? { path: att.path, thumbnail: att.thumbnail, name: att.name, kind: att.kind, mime: att.mime } : null };
     }).filter(Boolean);
     db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
     db.prepare('INSERT OR REPLACE INTO chat_reads (message_id,user_id,read_at) SELECT id,?,? FROM chat_messages WHERE conversation_id=?').run(req.user.id, Date.now(), id);

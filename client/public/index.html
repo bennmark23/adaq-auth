@@ -1009,6 +1009,10 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
     <div class="msg-thread" id="chatPane"><div class="msg-empty">No messages yet</div></div>
   </div>
 </div></div>
+<div id="mediaViewer" class="modal hidden"><div class="sheet" style="max-width:92vw;text-align:center">
+  <button class="icon-btn" style="float:right" aria-label="Close" onclick="document.getElementById('mediaViewer').classList.add('hidden')">×</button>
+  <img id="mediaViewImg" src="" style="max-width:100%;max-height:80vh;border-radius:8px" alt="">
+</div></div>
 <div id="adminModal" class="modal hidden"><div class="sheet ui-sheet">
   <div class="ui-head">
     <div><h3 style="margin:0">Admins Power</h3><small class="muted">Users, activity, reports and tools</small></div>

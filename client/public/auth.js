@@ -922,6 +922,7 @@ async function loadChatMessages(id) {
         const reacts = (m.reactions || []).map(r => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(r.emoji)} ${r.n}</button>`).join('');
         return `<div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">
           ${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}
+          ${m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${escapeHtml(m.attachment.thumbnail || m.attachment.path)}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${escapeHtml(m.attachment.path)}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${escapeHtml(m.attachment.path)}"></audio>` : `<a class="file-link" href="${escapeHtml(m.attachment.path)}" target="_blank" rel="noopener">📄 ${escapeHtml(m.attachment.name || 'File')}</a>`) : ''}
           ${body}${m.edited_at ? '<small>Edited</small>' : ''}
           ${m.deleted_for_everyone ? '' : `<div class="bubble-actions">
             <button onclick="chatAction(${m.id},'react')" title="React">😊</button>
@@ -934,9 +935,43 @@ async function loadChatMessages(id) {
           <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
         </div>`;
       }).join('') : '<div class="msg-day">No messages yet</div>'}</div>
-      ${canReply ? `<div class="msg-compose"><input id="chatInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
+      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">📎<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" title="Emoji">😊</button><input id="chatInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
+}
+let CHAT_XHR = null;
+function insertEmoji() {
+  const i = document.getElementById('chatInput');
+  if (!i) return;
+  i.value += '😊';
+  i.focus();
+}
+function viewMedia(url) {
+  const v = document.getElementById('mediaViewer');
+  const img = document.getElementById('mediaViewImg');
+  if (img) img.src = url;
+  if (v) v.classList.remove('hidden');
+}
+function sendChatFile() {
+  const input = document.getElementById('chatFile');
+  const file = input && input.files ? input.files[0] : null;
+  if (!file || !CHAT_ID) return;
+  const status = document.getElementById('uploadStatus');
+  const fd = new FormData(); fd.append('file', file);
+  const xhr = new XMLHttpRequest(); CHAT_XHR = xhr;
+  xhr.open('POST', '/api/chat/conversations/' + CHAT_ID + '/media');
+  xhr.setRequestHeader('authorization', 'Bearer ' + (sessionStorage.getItem('adaq_token') || ''));
+  if (status) { status.style.display = 'block'; status.textContent = 'Uploading 0% (tap to cancel)'; status.onclick = () => xhr.abort(); }
+  xhr.upload.onprogress = e => { if (e.lengthComputable && status) status.textContent = 'Uploading ' + Math.round(e.loaded / e.total * 100) + '% (tap to cancel)'; };
+  xhr.onload = () => {
+    CHAT_XHR = null;
+    if (status) { status.style.display = 'none'; status.onclick = null; }
+    if (xhr.status === 200) { input.value = ''; if (CHAT_ID) loadChatMessages(CHAT_ID); loadConversations(); }
+    else { try { alert(JSON.parse(xhr.responseText).error || 'Upload failed'); } catch (e) { alert('Upload failed'); } }
+  };
+  xhr.onerror = () => { CHAT_XHR = null; if (status) status.style.display = 'none'; alert('Upload failed'); };
+  xhr.onabort = () => { CHAT_XHR = null; if (status) { status.style.display = 'none'; status.textContent = 'Upload cancelled'; } };
+  xhr.send(fd);
 }
 let REPLY_ID = null;
 async function chatAction(id, action) {
