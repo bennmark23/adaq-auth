@@ -33,9 +33,12 @@ const DB_PATH = path.join(DATA_DIR, 'adaq.db');
 const GH_TOKEN = process.env.GH_BACKUP_TOKEN || '';
 const GH_REPO = process.env.GH_BACKUP_REPO || '';
 const GH_PATH = (process.env.GH_BACKUP_PATH || 'adaq.db').replace(/^\/+/, '');
+const GH_UP_PATH = (process.env.GH_UPLOADS_PATH || 'uploads.tar.gz').replace(/^\/+/, '');
 const GH_BRANCH = process.env.GH_BACKUP_BRANCH || 'main';
 const GH_API = GH_REPO ? 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_PATH : '';
+const GH_UP_API = GH_REPO ? 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_UP_PATH : '';
 let ghSha = '';
+let ghUploadsSha = '';
 const ghHeaders = () => ({
   'Authorization': 'Bearer ' + GH_TOKEN,
   'Accept': 'application/vnd.github+json',
@@ -63,7 +66,32 @@ function ghRestore() {
   try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
   return false;
 }
+// Restore profile pictures (uploads folder) from the same GitHub repo.
+function ghRestoreUploads() {
+  if (!GH_UP_API || !GH_TOKEN) return false;
+  const json = DB_PATH + '.uploads.json';
+  const archive = path.join(DATA_DIR, 'uploads.restore.tar.gz');
+  try {
+    const url = GH_UP_API + '?ref=' + encodeURIComponent(GH_BRANCH);
+    execFileSync('curl', ['-fsSL', '--max-time', '20', '-H', 'Authorization: Bearer ' + GH_TOKEN,
+      '-H', 'Accept: application/vnd.github+json', url, '-o', json], { stdio: 'ignore', timeout: 25000 });
+    const j = JSON.parse(fs.readFileSync(json, 'utf8'));
+    if (j && j.content && j.sha) {
+      fs.writeFileSync(archive, Buffer.from(String(j.content).replace(/\s+/g, ''), 'base64'));
+      execFileSync('tar', ['-xzf', archive, '-C', DATA_DIR], { stdio: 'ignore', timeout: 30000 });
+      ghUploadsSha = j.sha;
+      fs.unlinkSync(archive);
+      fs.unlinkSync(json);
+      console.log('Uploads restored from GitHub backup');
+      return true;
+    }
+  } catch (e) { console.log('No GitHub uploads backup found; using local uploads'); }
+  try { if (fs.existsSync(json)) fs.unlinkSync(json); } catch (e) {}
+  try { if (fs.existsSync(archive)) fs.unlinkSync(archive); } catch (e) {}
+  return false;
+}
 ghRestore();
+ghRestoreUploads();
 
 const db = new DatabaseSync(DB_PATH);
 db.exec(`
@@ -551,13 +579,40 @@ async function ghBackup() {
   } catch (e) { console.log('DB backup failed:', e.message); }
   try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
 }
+// Uploads are archived into one tar.gz so all profile pictures are stored in one file.
+async function ghBackupUploads() {
+  if (!GH_UP_API || !GH_TOKEN) return;
+  const archive = path.join(DATA_DIR, 'uploads.backup.tar.gz');
+  try {
+    if (!fs.existsSync(UPLOADS) || !fs.readdirSync(UPLOADS).length) return;
+    if (fs.existsSync(archive)) fs.unlinkSync(archive);
+    try { execFileSync('tar', ['-czf', archive, '-C', DATA_DIR, 'uploads'], { stdio: 'ignore', timeout: 30000 }); }
+    catch (e) { console.log('Uploads backup failed (tar):', e.message); return; }
+    const content = fs.readFileSync(archive).toString('base64');
+    if (!ghUploadsSha) {
+      try {
+        const g = await fetch(GH_UP_API + '?ref=' + encodeURIComponent(GH_BRANCH), { headers: ghHeaders() });
+        if (g.ok) { const j = await g.json(); ghUploadsSha = j.sha || ''; }
+      } catch (e) {}
+    }
+    const body = { message: 'ADAQ uploads backup ' + new Date().toISOString(), content, branch: GH_BRANCH };
+    if (ghUploadsSha) body.sha = ghUploadsSha;
+    const r = await fetch(GH_UP_API, { method: 'PUT', headers: Object.assign(ghHeaders(), { 'content-type': 'application/json' }), body: JSON.stringify(body) });
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j.content && j.content.sha) ghUploadsSha = j.content.sha;
+      console.log('Uploads backed up to GitHub');
+    } else { console.log('Uploads backup failed:', r.status, (await r.text()).slice(0, 120)); }
+  } catch (e) { console.log('Uploads backup failed:', e.message); }
+  try { if (fs.existsSync(archive)) fs.unlinkSync(archive); } catch (e) {}
+}
 if (GH_API && GH_TOKEN) {
-  setTimeout(() => { ghBackup(); }, 5000);
-  setInterval(() => { ghBackup(); }, 60 * 1000);
+  setTimeout(() => { ghBackup(); ghBackupUploads(); }, 5000);
+  setInterval(() => { ghBackup(); ghBackupUploads(); }, 60 * 1000);
 }
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v28' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v29' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [

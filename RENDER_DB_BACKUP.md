@@ -29,8 +29,8 @@ The server now backs up and restores this database automatically using a
 
 ## Notes
 
+- Profile pictures under `server/data/uploads` are archived into one `uploads.tar.gz`
+  file in the same GitHub repo and restored on boot. No extra setup needed.
 - Never put the token in client code — it is server-side environment only.
 - With no env vars configured (local development), backup/restore is simply skipped.
 - Worst-case data loss after an abrupt crash is about 60 seconds.
-- Uploaded profile pictures under `server/data/uploads` are still ephemeral.
-  If you want those preserved too, say so and I'll include them in the GitHub backup.
