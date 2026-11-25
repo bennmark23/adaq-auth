@@ -1,4 +1,4 @@
-﻿??<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -64,7 +64,16 @@ html.adaq-auth-pending #authOverlay{display:none!important}
 try{if(sessionStorage.getItem('adaq_token'))document.documentElement.classList.add('adaq-auth-pending');}catch(e){}
 setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pending');},8000);
 </script></head><body><div id="app" style="display:none">
-<header><b class="logo">ADAQ</b><span id="st" class="mu">connecting?</span></header>
+<header><b class="logo">ADAQ</b><span id="st" class="mu"></span>
+  <div id="topBar" style="display:flex;align-items:center;gap:8px;margin-left:auto">
+    <button id="adminBtn" onclick="document.getElementById('adminModal').classList.remove('hidden');loadAdmin()" style="display:none;background:#ea3943;color:#fff;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid #ea3943">Admins Power</button>
+    <button id="profileTopBtn" onclick="document.getElementById('profileModal').classList.remove('hidden')" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;background:var(--card);border:1px solid var(--bd);cursor:pointer">
+      <img id="topAvatar" src="icon-192.png" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#232c3b">
+      <span id="topUsername" style="font-size:13px">Profile</span>
+    </button>
+    <button onclick="logout()" style="padding:6px 10px;border-radius:20px">Logout</button>
+  </div>
+</header>
 <div id="banner" class="ban none"></div>
 <div id="ses"></div><div id="announceWrap" style="margin-bottom:8px"></div>
 
@@ -146,10 +155,6 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 
 <div id="dt" hidden></div>
 <nav id="nav"><button data-t="chart" class="on">Chart</button><button data-t="mk">Markets</button><button data-t="mm">Memes</button><button data-t="nw">News</button><button data-t="tr">Training</button><button data-t="set">Settings</button><button data-t="admin" id="adminNavBtn" style="display:none;background:var(--b);color:white">Admins Features</button></nav>
-<div id="topBar" style="position:fixed;top:6px;right:12px;display:flex;align-items:center;gap:8px;z-index:71">
-  <button id="adminBtn" onclick="document.getElementById('adminModal').classList.remove('hidden');loadAdmin()" style="display:none;background:#ea3943;color:#fff;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid #ea3943">Admins Power</button>
-  <button id="profileTopBtn" style="margin-left:8px;background:var(--card);border:1px solid var(--bd);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer"><img id="topAvatar" src="" style="width:28px;height:28px;border-radius:50%;object-fit:cover"></button>
-</div>
 </div>
 <script src="mqtt.min.js"></script>
 <script>
@@ -262,28 +267,28 @@ function atr(c,n){let t=0;return c.map((x,i)=>{const tr=i?Math.max(x.h-x.l,Math.
 async function load(){
  if(S.hv&&(S.hv.sym!==S.sym||S.hv.tf!==S.tf))S.hv=null;
  if(S.ws){S.ws.onclose=null;S.ws.close();S.ws=null}
- S.c=[];S.sig=null;S.ready=false;S.key=null;S.pan=0;$('#st').textContent='loading?';
+ S.c=[];S.sig=null;S.ready=false;S.key=null;S.pan=0;$('#st').textContent='Loading...';
  const want=S.sym+'|'+S.tf;let c;
  try{if(S.src==='gt'){if(!S.gt)throw 0;c=await gtKlines(S.gt.net,S.gt.pool,S.tf)}else{const r=await fetch(`${BASE}/klines?symbol=${S.sym}&interval=${S.tf}&limit=300`);if(!r.ok)throw 0;
   c=(await r.json()).map(k=>({t:k[0],o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5]}))}if(!c.length)throw 0}
  catch(e){
   if(want!==S.sym+'|'+S.tf)return;
-  if(S.src==='gt'){$('#st').textContent='no chart data yet';toast('No candle data for this memecoin on this timeframe yet. Try another timeframe.');S.c=[];S.px=0;draw();hdr();renderHist();return}
+  if(S.src==='gt'){$('#st').textContent='No chart data yet';toast('No candle data for this memecoin on this timeframe yet. Try another timeframe.');S.c=[];S.px=0;draw();hdr();renderHist();return}
   const bad=S.sym,fb=S.ok||{sym:'BTCUSDT',tf:'15m'};
   if(fb.sym!==S.sym||fb.tf!==S.tf){S.sym=fb.sym;S.tf=fb.tf;SV('sym',S.sym);SV('tf',S.tf);SYMS2=SYMS2.filter(x=>x!==bad);fillSyms();tfs();toast(bad+' is not available on Binance spot. Showing '+S.sym+' instead.');return load()}
-  $('#st').textContent='no data for '+S.sym;return}
+  $('#st').textContent='No data for '+S.sym;return}
  if(want!==S.sym+'|'+S.tf)return;
  S.c=c;if(S.src!=='gt')S.ok={sym:S.sym,tf:S.tf};S.px=c.at(-1).c;PR[S.sym]=S.px;
- analyze();hvBar();if(S.hv)focusHv();draw();hdr();renderHist();if(S.pro)proSet(true);if(S.src==='gt')$('#st').textContent='?? live (updates every 10s)';else connect();
+ analyze();hvBar();if(S.hv)focusHv();draw();hdr();renderHist();if(S.pro)proSet(true);if(S.src==='gt')$('#st').textContent='';else connect();
 }
 function connect(){
  if(S.ws){S.ws.onclose=null;S.ws.close()}
  const ws=S.ws=new WebSocket(`${WSB}${S.sym.toLowerCase()}@kline_${S.tf}`);
- ws.onopen=()=>$('#st').textContent='?? live';
+ ws.onopen=()=>$('#st').textContent='';
  ws.onmessage=e=>{const k=JSON.parse(e.data).k;if(!k)return;const b={t:k.t,o:+k.o,h:+k.h,l:+k.l,c:+k.c,v:+k.v},L=S.c.at(-1);
   if(L&&L.t===b.t)S.c[S.c.length-1]=b;else{S.c.push(b);if(S.c.length>400)S.c.shift();S.hd=1}
   tick()};
- ws.onclose=()=>{$('#st').textContent='reconnecting?';setTimeout(()=>{if(S.ws===ws)connect()},2000)};
+ ws.onclose=()=>{$('#st').textContent='Reconnecting...';setTimeout(()=>{if(S.ws===ws)connect()},2000)};
 }
 let raf=0;
 function tick(){S.px=S.c.at(-1).c;PR[S.sym]=S.px;if(!raf)raf=requestAnimationFrame(()=>{raf=0;analyze();draw();hdr();checkPaper();if(S.hd){S.hd=0;renderHist()}if(Date.now()-(S.pl||0)>1000){S.pl=Date.now();updPL()}})}
@@ -973,13 +978,7 @@ function switchAdminTab(t){
     <div id="meetingArea"><small>No active meeting.</small></div>
     <button onclick="openMeeting()" style="margin-top:8px">Open Meeting</button>
   </div>
-</section><div style="position:fixed;top:8px;right:12px;display:flex;align-items:center;gap:8px;z-index:70">
-  <button id="profileTopBtn" onclick="document.getElementById('profileModal').classList.remove('hidden')" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;background:var(--card);border:1px solid var(--bd);cursor:pointer">
-    <img id="topAvatar" src="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#232c3b">
-    <span id="topUsername" style="font-size:13px">Profile</span>
-  </button>
-  <button onclick="logout()" style="padding:6px 10px;border-radius:20px">Logout</button>
-</div>
+</section>
 </body></html>
 
 
