@@ -13,6 +13,11 @@ localStorage.removeItem('adaq_token');
 // remember last user for login screen display
 let LAST_USER = null;
 try { LAST_USER = JSON.parse(localStorage.getItem('adaq_last_user') || 'null'); } catch (e) {}
+// The admin account must never appear on the normal user login page.
+if (LAST_USER && LAST_USER.username === 'admin') {
+  LAST_USER = null;
+  try { localStorage.removeItem('adaq_last_user'); } catch (e) {}
+}
 let USER = null;
 const $$ = s => document.querySelector(s);
 
@@ -21,6 +26,7 @@ function authReady() { document.documentElement.classList.remove('adaq-auth-pend
 // Keep the login screen's remembered user (name + avatar) in sync with the account.
 function rememberUser(u) {
   if (!u || !u.username) return;
+  if (u.username === 'admin') return; // admin is only shown on the admin URL
   LAST_USER = { username: u.username, avatar: u.avatar || '' };
   try { localStorage.setItem('adaq_last_user', JSON.stringify(LAST_USER)); } catch (e) {}
 }
@@ -88,7 +94,7 @@ async function doLogin() {
     if (r.needsTotpEnroll) { TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user; hideLogin(); showEnroll(r); return; }
     if (r.totpRequired) { msg.textContent = 'TOTP code required'; return; }
     TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
-    rememberUser(r.user);
+    if (!ADMIN_MODE) rememberUser(r.user);
     hideLogin(); await afterLogin();
   } catch (e) { msg.textContent = e.message; }
 }
@@ -168,7 +174,7 @@ async function startTotpEnrollment() {
 async function afterLogin() {
   authReady();
   try { USER = (await api('/auth/me')).user; } catch (e) { logout(); return; }
-  rememberUser(USER);
+  if (!ADMIN_MODE) rememberUser(USER);
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('app').style.display = '';
   applyTheme(USER.theme);
@@ -314,7 +320,7 @@ async function changeUsername() {
   try {
     const r = await api('/profile/username', { method: 'POST', body: { username: u } });
     TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
-    rememberUser(USER);
+    if (!ADMIN_MODE) rememberUser(USER);
     document.getElementById('profileName').textContent = USER.username;
     alert('Username changed');
   } catch (e) { alert(e.message); }
@@ -325,7 +331,7 @@ async function uploadAvatar() {
   const fd = new FormData(); fd.append('file', f);
   try {
     const r = await api('/profile/avatar', { method: 'POST', body: fd });
-    if (USER) { USER.avatar = r.avatar; rememberUser(USER); }
+    if (USER) { USER.avatar = r.avatar; if (!ADMIN_MODE) rememberUser(USER); }
     const img = document.getElementById('profAvatarImg'); if (img) img.src = r.avatar;
     const ta = document.getElementById('topAvatar'); if (ta) ta.src = r.avatar;
   } catch (e) { alert(e.message); }
