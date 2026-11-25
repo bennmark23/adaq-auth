@@ -166,6 +166,9 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
 let dirty=false,syncT=0,syApplying=false;
+// Shared by all tabs in this browser, different on other devices. Used so sync does
+// not mirror state between tabs of the same browser (admin vs user accounts).
+const BID=(()=>{try{let b=localStorage.getItem('adaq_bid');if(!b){b=Math.random().toString(36).slice(2);localStorage.setItem('adaq_bid',b)}return b}catch(e){return 'x'+Math.random().toString(36).slice(2)}})();
 const CL=()=>({u:String(LS('cu','')||'').replace(/\/+$/,''),t:LS('ct','')});
 const setCst=m=>{const e=document.getElementById('cst');if(e)e.textContent=m};
 async function api(path,opt={}){
@@ -192,7 +195,7 @@ function syPub(){
   if(!window.mqtt||!syRoom()||!syClient||!syClient.connected)return;
   const data={};SYNCK.forEach(k=>{const v=LS(k,undefined);if(v!==undefined)data[k]=v});
   const ts=Date.now();syTs=Math.max(syTs,ts);
-  syClient.publish(syRoom(),JSON.stringify({ts,data,from:syClient.options.clientId}),{retain:true,qos:1});
+  syClient.publish(syRoom(),JSON.stringify({ts,data,from:syClient.options.clientId,bid:BID}),{retain:true,qos:1});
   syStat('Synced '+new Date().toLocaleTimeString());
 }
 function syChanged(k){if(syApplying||!SYNCK.includes(k)||!syRoom())return;clearTimeout(syTimer);syTimer=setTimeout(syPub,600)}
@@ -225,6 +228,7 @@ function syApply(m){
 function syOnMessage(t,buf){
   let m;try{m=JSON.parse(buf.toString())}catch(e){return}
   if(!m||typeof m.ts!=='number'||!m.data||!syClient||m.from===syClient.options.clientId)return;
+  if(m.bid&&m.bid===BID)return; // same browser (another tab) - keep accounts independent
   if(m.ts<=syTs)return;
   syApply(m);
 }
