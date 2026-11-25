@@ -442,8 +442,8 @@ async function init() {
   }
   const token = getInviteToken();
   if (token) { showRegister(token); return; }
-  // show last user's avatar on login screen
-  if (LAST_USER) {
+  // show last user's avatar on login screen (never in admin mode - admin is always fixed)
+  if (!ADMIN_MODE && LAST_USER) {
     const av = document.getElementById('loginAvatar'); if (av && LAST_USER.avatar) av.src = LAST_USER.avatar;
     const un = document.getElementById('loginUser'); if (un && LAST_USER.username) un.value = LAST_USER.username;
     const nm = document.getElementById('loginName'); if (nm) nm.textContent = LAST_USER.username || '';
