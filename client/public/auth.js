@@ -406,8 +406,7 @@ async function init() {
         const div = document.createElement('div');
         div.id = 'rememberBtns';
         div.style.marginTop = '8px';
-        div.innerHTML = `<button onclick="loginAsRemembered()" style="width:100%;margin-bottom:4px">Login as ${escapeHtml(LAST_USER.username)}</button>
-          <button onclick="useAnotherAccount()" style="width:100%;background:none;border:1px solid var(--bd)">Use another account</button>`;
+        div.innerHTML = `<button onclick="loginAsRemembered()" style="width:100%">Login as ${escapeHtml(LAST_USER.username)}</button>`;
         const btn = box.querySelector('button[onclick="doLogin()"]');
         if (btn) box.insertBefore(div, btn);
       }
