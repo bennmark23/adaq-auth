@@ -160,6 +160,11 @@ CREATE TABLE IF NOT EXISTS recovery_tokens (
   created_at INTEGER NOT NULL
 );
 `);
+// New feature tables (additive migrations; existing tables are untouched).
+const { setup: setupDesigns } = require('./designs');
+const { setup: setupMessenger } = require('./messenger');
+setupDesigns(db);
+setupMessenger(db);
 
 // seed admin
 const adminRow = db.prepare('SELECT id FROM users WHERE username=?').get('admin');
@@ -612,7 +617,7 @@ if (GH_API && GH_TOKEN) {
 }
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v29' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v30' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
