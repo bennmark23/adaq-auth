@@ -265,6 +265,7 @@ function rsi(a,n){const o=[50];let g=0,l=0;for(let i=1;i<a.length;i++){const d=a
 function atr(c,n){let t=0;return c.map((x,i)=>{const tr=i?Math.max(x.h-x.l,Math.abs(x.h-c[i-1].c),Math.abs(x.l-c[i-1].c)):x.h-x.l;t=i?(t*(n-1)+tr)/n:tr;return t})}
 
 async function load(){
+ if(S.stickyKey&&S.stickyKey!==S.sym+'|'+S.tf){S.stickySig=null;S.stickyKey=null}
  if(S.hv&&(S.hv.sym!==S.sym||S.hv.tf!==S.tf))S.hv=null;
  if(S.ws){S.ws.onclose=null;S.ws.close();S.ws=null}
  S.c=[];S.sig=null;S.ready=false;S.key=null;S.pan=0;$('#st').textContent='Loading...';
@@ -355,13 +356,13 @@ function notify(s){
 
 function banner(){banner0();if(NW.some(n=>n.imp&&Date.now()-n.t<18e5))$('#banner').insertAdjacentHTML('beforeend','<div class="bl"><span>Important news in the last 30 minutes. Trade with caution.</span></div>')}
 function banner0(){
- const s=S.sig||(S.tab==='admin'?S.stickySig:null),b=$('#banner');
+ const s=S.sig||S.stickySig,b=$('#banner');
  if(!s){b.className='ban none';b.innerHTML='<b>Do not enter yet! No good entry right now!</b>';return}
  const L=s.side>0;b.className='ban '+(L?'long':'short');
  b.innerHTML=`<b>${L?'Long Entry':'Short Entry'}</b> <span>${esc(lab(S.sym))}  ${S.tf}</span><div class="bl"><span>Entry ${fmt(s.en)}</span><span>Stop ${fmt(s.sl)}</span><span>TP ${fmt(s.tp)}</span><span>Q ${s.q||'?'}</span></div>`;
 }
 function hdr(){
- if(S.sig)S.stickySig=S.sig;
+ if(S.sig){S.stickySig=S.sig;S.stickyKey=S.sym+'|'+S.tf;}
  $('#px').textContent=fmt(S.px);banner();$('#tpx').textContent=fmt(S.px);$('#tsym').textContent=S.sym;
  const s=S.sig,p=$('#plan');
  if(!s){p.innerHTML='<b>No setup</b><br><small>Waiting for trend, momentum and volume to line up on '+S.tf+'. Try another timeframe or coin.</small>';return}
