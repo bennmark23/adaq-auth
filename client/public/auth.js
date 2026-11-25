@@ -224,7 +224,7 @@ async function afterLogin() {
   // profile name
   const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
   const tu = document.getElementById('topUsername'); if (tu) tu.textContent = USER.username;
-  const ta = document.getElementById('topAvatar'); if (ta && USER.avatar) ta.src = USER.avatar;
+  const ta = document.getElementById('topAvatar'); if (ta) { ta.onerror = () => { ta.onerror = null; ta.src = '/default-avatar.svg'; }; ta.src = USER.avatar || '/default-avatar.svg'; }
   // connect websocket
   connectWS();
   // report filter handlers
@@ -239,6 +239,7 @@ async function afterLogin() {
 function logout() {
   TOKEN = ''; sessionStorage.removeItem('adaq_token'); USER = null;
   if (typeof S !== 'undefined' && S) { S.bannerLocked = true; S.stickySig = null; S.sig = null; }
+  ['profileModal','cpModal','adminModal','enrollModal'].forEach(id => { const m = document.getElementById(id); if (m) m.classList.add('hidden'); });
   showLogin();
   document.getElementById('loginBox').style.display = 'block';
   document.getElementById('registerBox').style.display = 'none';
@@ -340,34 +341,79 @@ async function sendMessage() {
 }
 
 // ---- Profile ----
+function profileMsg(text, ok) {
+  const el = document.getElementById('profMsg');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'ui-msg' + (text ? (ok ? ' ok' : ' err') : '');
+}
+function openProfile() {
+  const u = USER || {};
+  const img = document.getElementById('profAvatarImg');
+  if (img) { img.onerror = () => { img.onerror = null; img.src = '/default-avatar.svg'; }; img.src = u.avatar || '/default-avatar.svg'; }
+  const nu = document.getElementById('profNewUser'); if (nu) nu.value = '';
+  const th = document.getElementById('profTheme'); if (th) th.value = u.theme || 'dark';
+  const al = document.getElementById('profAlerts'); if (al) al.checked = u.alerts_on !== 0;
+  const file = document.getElementById('profAvatarFile'); if (file) file.value = '';
+  const side = document.getElementById('profPhotoSide');
+  const isAdmin = u.role === 'admin';
+  if (side) side.style.display = isAdmin ? 'none' : '';
+  const hint = document.getElementById('profAvatarHint');
+  if (hint) hint.textContent = isAdmin ? 'Administrator profile picture is fixed.' : 'JPG or PNG, up to 5 MB. Saved when you tap Save changes.';
+  profileMsg('');
+  document.getElementById('profileModal').classList.remove('hidden');
+}
+function profilePhotoChosen() {
+  const f = document.getElementById('profAvatarFile').files[0];
+  if (!f) return;
+  const img = document.getElementById('profAvatarImg');
+  if (img) img.src = URL.createObjectURL(f);
+  profileMsg('Photo selected — tap Save changes to apply.', true);
+}
 async function saveProfile() {
   const theme = document.getElementById('profTheme').value;
   const alerts = document.getElementById('profAlerts').checked;
-  await api('/profile', { method: 'PUT', body: { theme, alerts_on: alerts } });
-  if (USER) { USER.theme = theme; USER.alerts_on = alerts; }
-  applyTheme(theme);
-  alert('Saved');
-}
-async function changeUsername() {
-  const u = document.getElementById('profNewUser').value.trim();
+  const newUser = document.getElementById('profNewUser').value.trim();
+  const fileInput = document.getElementById('profAvatarFile');
+  const f = fileInput && fileInput.files ? fileInput.files[0] : null;
+  const btn = document.querySelector('#profileModal .btn-primary');
+  if (btn) btn.disabled = true;
   try {
-    const r = await api('/profile/username', { method: 'POST', body: { username: u } });
-    TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
-    if (!ADMIN_MODE) rememberUser(USER);
-    document.getElementById('profileName').textContent = USER.username;
-    alert('Username changed');
-  } catch (e) { alert(e.message); }
+    profileMsg('Saving...', true);
+    // Photo (ignored for the fixed admin profile)
+    if (f && (!USER || USER.role !== 'admin')) await uploadAvatar();
+    // Username only when the field was filled in
+    if (newUser && newUser !== (USER ? USER.username : '')) await changeUsername(newUser);
+    // Theme and alerts
+    const r = await api('/profile', { method: 'PUT', body: { theme, alerts_on: alerts } });
+    if (r && r.user) USER = r.user;
+    if (USER) { USER.theme = theme; USER.alerts_on = alerts; }
+    applyTheme(theme);
+    const nu = document.getElementById('profNewUser'); if (nu) nu.value = '';
+    if (fileInput) fileInput.value = '';
+    profileMsg('All changes saved.', true);
+  } catch (e) { profileMsg(e.message || 'Could not save', false); }
+  if (btn) btn.disabled = false;
+}
+async function changeUsername(u) {
+  const name = u || document.getElementById('profNewUser').value.trim();
+  if (!name) return;
+  const r = await api('/profile/username', { method: 'POST', body: { username: name } });
+  TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
+  if (!ADMIN_MODE) rememberUser(USER);
+  const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
+  const tu = document.getElementById('topUsername'); if (tu) tu.textContent = USER.username;
+  return r;
 }
 async function uploadAvatar() {
   const f = document.getElementById('profAvatarFile').files[0];
   if (!f) return;
   const fd = new FormData(); fd.append('file', f);
-  try {
-    const r = await api('/profile/avatar', { method: 'POST', body: fd });
-    if (USER) { USER.avatar = r.avatar; if (!ADMIN_MODE) rememberUser(USER); }
-    const img = document.getElementById('profAvatarImg'); if (img) img.src = r.avatar;
-    const ta = document.getElementById('topAvatar'); if (ta) ta.src = r.avatar;
-  } catch (e) { alert(e.message); }
+  const r = await api('/profile/avatar', { method: 'POST', body: fd });
+  if (USER) { USER.avatar = r.avatar; if (!ADMIN_MODE) rememberUser(USER); }
+  const img = document.getElementById('profAvatarImg'); if (img) img.src = r.avatar;
+  const ta = document.getElementById('topAvatar'); if (ta) ta.src = r.avatar;
+  return r;
 }
 async function addJournal() {
   const e = document.getElementById('journalInput').value.trim();

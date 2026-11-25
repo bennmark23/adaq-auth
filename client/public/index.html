@@ -73,11 +73,10 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 <header><b class="logo" id="pageTitle">Chart</b><span id="st" class="mu"></span>
   <div id="topBar" style="display:flex;align-items:center;gap:8px;margin-left:auto">
     <button id="adminBtn" onclick="document.getElementById('adminModal').classList.remove('hidden');loadAdmin()" style="display:none;background:#ea3943;color:#fff;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid #ea3943">Admins Power</button>
-    <button id="profileTopBtn" onclick="document.getElementById('profileModal').classList.remove('hidden')" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;background:var(--card);border:1px solid var(--bd);cursor:pointer">
+    <button id="profileTopBtn" onclick="openProfile()" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;background:var(--card);border:1px solid var(--bd);cursor:pointer">
       <img id="topAvatar" src="icon-192.png" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#232c3b">
       <span id="topUsername" style="font-size:13px">Profile</span>
     </button>
-    <button onclick="logout()" style="padding:6px 10px;border-radius:20px">Logout</button>
   </div>
 </header>
 <div id="banner" class="ban none"></div>
@@ -898,24 +897,36 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
   <button onclick="submitEnroll()">Verify & Enable</button>
   <div id="enrollMsg" style="color:#ea3943;margin-top:8px"></div>
 </div></div>
-<div id="profileModal" class="modal hidden"><div class="sheet">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Profile</h3><button onclick="document.getElementById('profileModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
-  <img id="profAvatarImg" class="avatar" src="">
-  <input type="file" id="profAvatarFile" accept="image/*">
-  <button onclick="uploadAvatar()">Upload Photo</button>
-  <div style="margin-top:8px"><small>Username (change once per week)</small><input id="profNewUser" placeholder="New username"><button onclick="changeUsername()">Change Username</button></div>
-  <div style="margin-top:8px"><small>Theme</small><select id="profTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="blue">Blue</option><option value="yellow">Yellow</option><option value="brown">Brown</option></select></div>
-  <label style="display:flex;gap:8px;align-items:center;margin-top:8px"><input type="checkbox" id="profAlerts" style="width:auto"> Alerts & notifications</label>
-  <button onclick="saveProfile()">Save</button>
-  <button onclick="document.getElementById('cpModal').classList.remove('hidden')">Change Password</button>
-  
-</div></div>
-<div id="adminModal" class="modal hidden"><div class="sheet">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-    <h3 style="margin:0">Admins Power</h3>
-    <button onclick="document.getElementById('adminModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button>
+<div id="profileModal" class="modal hidden"><div class="sheet ui-sheet">
+  <div class="ui-head">
+    <div><h3 style="margin:0">Profile</h3><small class="muted">Manage your account details</small></div>
+    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('profileModal').classList.add('hidden')">×</button>
   </div>
-  <div class="tabbar">
+  <div class="ui-body">
+    <div class="profile-photo">
+      <img id="profAvatarImg" class="profile-avatar" src="/default-avatar.svg" alt="Profile photo">
+      <div class="profile-photo-side" id="profPhotoSide">
+        <label class="btn btn-ghost file-btn">Choose photo<input type="file" id="profAvatarFile" accept="image/*" onchange="profilePhotoChosen()"></label>
+        <small class="muted" id="profAvatarHint">JPG or PNG, up to 5 MB. Saved when you tap Save changes.</small>
+      </div>
+    </div>
+    <div class="ui-field"><label for="profNewUser">Username <small class="muted">· once per week</small></label><input id="profNewUser" placeholder="New username" autocomplete="off"></div>
+    <div class="ui-field"><label for="profTheme">Theme</label><select id="profTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="blue">Blue</option><option value="yellow">Yellow</option><option value="brown">Brown</option></select></div>
+    <label class="ui-check"><input type="checkbox" id="profAlerts" style="width:auto"> <span>Alerts &amp; notifications</span></label>
+    <div id="profMsg" class="ui-msg"></div>
+  </div>
+  <div class="ui-actions">
+    <button class="btn btn-ghost" onclick="document.getElementById('cpModal').classList.remove('hidden')">Change Password</button>
+    <button class="btn btn-primary" onclick="saveProfile()">Save changes</button>
+    <button class="btn btn-danger" onclick="logout()">Log out</button>
+  </div>
+</div></div>
+<div id="adminModal" class="modal hidden"><div class="sheet ui-sheet">
+  <div class="ui-head">
+    <div><h3 style="margin:0">Admins Power</h3><small class="muted">Users, activity, reports and tools</small></div>
+    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('adminModal').classList.add('hidden')">×</button>
+  </div>
+  <div class="tabbar seg">
     <button class="on" onclick="switchAdminTab('users')">Users</button>
     <button onclick="switchAdminTab('activity')">Activity</button>
     <button onclick="switchAdminTab('invite')">Invite</button>
@@ -923,37 +934,37 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
     <button onclick="switchAdminTab('messages')">Messages</button>
     <button onclick="switchAdminTab('settings')">Admin Link</button>
   </div>
-  <div id="adminTab_users"><div id="adminUsers"></div></div>
-  <div id="adminTab_settings" style="display:none">
-    <h3>Admin Login Link</h3>
-    <small>Your secret admin login URL. Share only with yourself.</small>
-    <div id="adminPathDisplay" style="word-break:break-all;font-family:monospace;margin:8px 0;padding:8px;background:var(--card);border-radius:8px"></div>
-    <button onclick="loadAdminPath()">Refresh</button>
-    <button onclick="regenerateAdminPath()">Regenerate (invalidates old link)</button>
+  <div class="ui-body panel" id="adminTab_users"><div id="adminUsers"></div></div>
+  <div class="ui-body panel" id="adminTab_activity" style="display:none"><div id="adminActivity"></div></div>
+  <div class="ui-body panel" id="adminTab_invite" style="display:none">
+    <div class="ui-field"><label for="inviteRole">Invite as</label><select id="inviteRole"><option value="user">User</option><option value="subadmin">Sub-admin</option></select></div>
+    <button class="btn btn-primary" onclick="createInvite()">Generate invitation link</button>
+    <div id="inviteOut" class="ui-result"></div>
   </div>
-  <div id="adminTab_activity" style="display:none"><div id="adminActivity"></div></div>
-  <div id="adminTab_invite" style="display:none">
-    <select id="inviteRole"><option value="user">User</option><option value="subadmin">Sub-admin</option></select>
-    <button onclick="createInvite()">Generate Invitation Link</button>
-    <div id="inviteOut"></div>
-  </div>
-  <div id="adminTab_announce" style="display:none">
-    <div style="display:flex;gap:8px;align-items:flex-start">
-      <textarea id="announceInput" style="flex:1;height:80px"></textarea>
-      <button onclick="sendAnnouncement()" style="align-self:flex-end">Announce</button>
-    </div>
-    <h4 style="margin:12px 0 4px">Past announcements</h4>
+  <div class="ui-body panel" id="adminTab_announce" style="display:none">
+    <div class="ui-field"><label for="announceInput">Message</label><textarea id="announceInput" rows="3" placeholder="Announcement for all users"></textarea></div>
+    <button class="btn btn-primary" onclick="sendAnnouncement()">Post announcement</button>
+    <h4 class="section-title">Past announcements</h4>
     <div id="pastAnnounceList"></div>
   </div>
-  <div id="adminTab_messages" style="display:none">
-    <input id="msgTo" placeholder="To user id (blank=broadcast)">
-    <select id="msgEnc"><option value="">No auto-delete</option><option value="daily">Delete after 1 day</option><option value="weekly">Delete after 1 week</option><option value="monthly">Delete after 1 month</option></select>
-    <input type="file" id="msgImg">
-    <textarea id="msgInput" style="width:100%;height:60px"></textarea>
-    <button onclick="sendMessage()">Send</button>
+  <div class="ui-body panel" id="adminTab_messages" style="display:none">
+    <div class="ui-field"><label for="msgTo">To user ID <small class="muted">· blank = broadcast</small></label><input id="msgTo" placeholder="User ID"></div>
+    <div class="ui-field"><label for="msgEnc">Auto-delete</label><select id="msgEnc"><option value="">No auto-delete</option><option value="daily">After 1 day</option><option value="weekly">After 1 week</option><option value="monthly">After 1 month</option></select></div>
+    <div class="ui-field"><label for="msgImg">Image <small class="muted">· optional</small></label><input type="file" id="msgImg"></div>
+    <div class="ui-field"><label for="msgInput">Message</label><textarea id="msgInput" rows="3" placeholder="Write a message"></textarea></div>
+    <button class="btn btn-primary" onclick="sendMessage()">Send message</button>
+    <h4 class="section-title">Conversation</h4>
     <div id="msgList"></div>
   </div>
-  
+  <div class="ui-body panel" id="adminTab_settings" style="display:none">
+    <h4 class="section-title">Admin login link</h4>
+    <small class="muted">Secret URL for the administrator login. Share only with yourself.</small>
+    <div id="adminPathDisplay" class="code-box"></div>
+    <div class="ui-actions">
+      <button class="btn btn-ghost" onclick="loadAdminPath()">Refresh</button>
+      <button class="btn btn-danger" onclick="regenerateAdminPath()">Regenerate link</button>
+    </div>
+  </div>
 </div></div>
 <script>
 function switchAdminTab(t){

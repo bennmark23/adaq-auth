@@ -98,10 +98,13 @@ CREATE TABLE IF NOT EXISTS recovery_tokens (
 const adminRow = db.prepare('SELECT id FROM users WHERE username=?').get('admin');
 if (!adminRow) {
   const hash = bcrypt.hashSync('123456', 10);
-  db.prepare('INSERT INTO users (username,password_hash,role,password_must_change,created_at,theme) VALUES (?,?,?,?,?,?)')
-    .run('admin', hash, 'admin', 1, Date.now(), 'dark');
+  db.prepare('INSERT INTO users (username,password_hash,role,password_must_change,created_at,theme,avatar) VALUES (?,?,?,?,?,?,?)')
+    .run('admin', hash, 'admin', 1, Date.now(), 'dark', '/icon-192.png');
   console.log('Seeded admin (password: 123456, must change on first login)');
 }
+// Default avatars: admin is fixed; every other account gets a profile avatar.
+db.prepare("UPDATE users SET avatar=? WHERE username='admin'").run('/icon-192.png');
+db.prepare("UPDATE users SET avatar=? WHERE avatar IS NULL").run('/default-avatar.svg');
 
 const app = express();
 app.use(cors());
@@ -278,7 +281,7 @@ app.post('/api/invite/:token/register', (req, res) => {
   if (!username || !password || password.length < 4) return res.status(400).json({ error: 'Invalid input' });
   if (db.prepare('SELECT id FROM users WHERE username=?').get(username)) return res.status(409).json({ error: 'Username taken' });
   const hash = bcrypt.hashSync(password, 10);
-  const info = db.prepare('INSERT INTO users (username,password_hash,role,password_must_change,created_at,theme) VALUES (?,?,?,?,?,?)').run(username, hash, inv.role, 0, Date.now(), 'dark');
+  const info = db.prepare('INSERT INTO users (username,password_hash,role,password_must_change,created_at,theme,avatar) VALUES (?,?,?,?,?,?,?)').run(username, hash, inv.role, 0, Date.now(), 'dark', '/default-avatar.svg');
   // new users via invite: require password change? No, but require TOTP enrollment on first login? We'll set totp not enabled, so login returns needsTotpEnroll.
   db.prepare('UPDATE invitations SET used=1,used_by=? WHERE id=?').run(info.lastInsertRowid, inv.id);
   logActivity(info.lastInsertRowid, 'registered', inv.role);
@@ -307,6 +310,7 @@ app.post('/api/profile/username', auth, (req, res) => {
   res.json({ user: publicUser(u), token: signToken(u) });
 });
 app.post('/api/profile/avatar', auth, upload.single('file'), (req, res) => {
+  if (req.user.role === 'admin') return res.status(403).json({ error: 'Admin profile picture is fixed' });
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const url = '/uploads/' + req.file.filename;
   db.prepare('UPDATE users SET avatar=? WHERE id=?').run(url, req.user.id);
@@ -483,7 +487,7 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v25' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v26' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
