@@ -759,7 +759,7 @@ async function chg(){if(S.src==='gt'){const p=S.gtPair&&S.gtPair.priceChange&&S.
 
 function show(t,keep){
  if(S.src==='gt'&&t!=='mm'&&!keep)exitMeme();
- S.tab=t;['chart','mk','mm','nw','tr','set'].forEach(k=>$('#v-'+k).hidden=k!==t);
+ S.tab=t;['chart','mk','mm','nw','tr','set','admin'].forEach(k=>$('#v-'+k).hidden=k!==t);
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
  if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}
 }

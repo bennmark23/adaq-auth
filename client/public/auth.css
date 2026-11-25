@@ -15,6 +15,7 @@ body{background:var(--bg);color:var(--tx)}
 .card{background:var(--card);border:1px solid var(--bd)}
 button,select,input{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
 #app{max-width:960px;margin:0 auto}
+#v-admin{max-width:960px;margin:0 12.3333px;padding:8px 12px 74px;width:100%;box-sizing:border-box}
 .msg-item{padding:8px;border-bottom:1px solid var(--bd)}
 .online{color:#16c784}.offline{color:#ea3943}
 .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#232c3b}
