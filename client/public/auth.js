@@ -522,33 +522,52 @@ function switchAdminTab2(t) {
   if (t === 'reports') loadReports();
   if (t === 'meeting') loadMeeting();
 }
-// Bot profile avatar (initials, like a user avatar) and live duty label
-function botAvatar(b) {
-  const initials = String(b.name || 'BOT').replace(/^(mr\.?|mrs\.?|ms\.?)\s*/i, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'B';
-  const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#6366f1','#14b8a6'];
-  let n = 0; for (const ch of String(b.id || b.name || '')) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
-  return `<span class="bot-avatar" style="background:${colors[n % colors.length]}">${escapeHtml(initials)}</span>`;
+// Lightweight SVG "3D-style" bot characters (no 3D library, CSS animation only)
+const BOT_COLORS={mr_admin:'#3b82f6',mr_monkey:'#f59e0b',mr_hunter:'#10b981',mr_designer:'#ec4899',mr_chart:'#06b6d4',mrs_stoploss:'#ef4444',mr_take_profit:'#16c784',mrs_qa:'#8b5cf6',mr_whitehack:'#6366f1'};
+function botWorking(b){return !b.paused&&(b.status==='on_duty'||b.status==='online')}
+function botChar(b){
+  const c=BOT_COLORS[b.id]||'#3b82f6';
+  const acc={
+    mr_admin:'<path d="M32 13 L40 5 L48 13 Z" fill="#f5a524"/>',
+    mr_monkey:'<path d="M22 22 Q40 8 58 22" stroke="#f5a524" stroke-width="4" fill="none"/>',
+    mr_hunter:'<path d="M20 18 Q40 4 60 18 L58 22 Q40 12 22 22 Z" fill="#0b0e14"/>',
+    mr_designer:'<g stroke="#0b0e14" stroke-width="2" fill="none"><rect x="25" y="27" width="12" height="8" rx="3"/><rect x="43" y="27" width="12" height="8" rx="3"/><path d="M37 31h6"/></g>',
+    mr_chart:'<path d="M53 60 l6 -9 5 5 7 -11" stroke="#e6e9ef" stroke-width="2" fill="none"/>',
+    mrs_stoploss:'<text x="40" y="70" font-size="9" fill="#fff" text-anchor="middle">SL</text>',
+    mr_take_profit:'<text x="40" y="70" font-size="9" fill="#fff" text-anchor="middle">TP</text>',
+    mrs_qa:'<path d="M22 30 q-6 4 0 14" stroke="#0b0e14" stroke-width="3" fill="none"/><circle cx="59" cy="40" r="3" fill="#0b0e14"/>',
+    mr_whitehack:'<path d="M20 24 Q40 2 60 24 L58 30 Q40 14 22 30 Z" fill="#0b0e14"/>'
+  }[b.id]||'';
+  return `<svg class="bot-char" viewBox="0 0 80 88" aria-hidden="true">
+   <ellipse cx="40" cy="83" rx="22" ry="4" fill="#0007"/>
+   <rect x="28" y="50" width="24" height="30" rx="9" fill="${c}"/>
+   <rect x="22" y="56" width="8" height="18" rx="4" fill="${c}" class="bot-arm"/>
+   <rect x="50" y="56" width="8" height="18" rx="4" fill="${c}" class="bot-arm2"/>
+   <rect x="20" y="14" width="40" height="40" rx="13" fill="${c}"/>
+   <rect x="26" y="28" width="9" height="7" rx="3" fill="#fff" class="bot-eye"/>
+   <rect x="45" y="28" width="9" height="7" rx="3" fill="#fff" class="bot-eye"/>
+   <circle cx="30" cy="31" r="2" fill="#0b0e14"/><circle cx="49" cy="31" r="2" fill="#0b0e14"/>
+   <path d="M33 42 q7 5 14 0" stroke="#0b0e14" stroke-width="2" fill="none"/>${acc}
+  </svg>`;
 }
-function botStatus(b) {
-  const working = !b.paused && (b.status === 'on_duty' || b.status === 'online');
-  return working
-    ? '<span class="bot-on">● On Duty working now</span>'
-    : '<span class="bot-off">● Off Duty now</span>';
+function botStatus(b){
+  if(!botWorking(b))return '<span class="bot-off">● Off Duty now</span>';
+  if(b.running_jobs>0)return '<span class="bot-on">● Working now · job in progress</span>';
+  if(!b.reports_count)return '<span class="bot-on">● On Duty working now · no reports yet</span>';
+  return `<span class="bot-on">● On Duty working now · ${b.reports_count} report${b.reports_count===1?'':'s'} filed</span>`;
 }
 async function loadBots() {
   const el = document.getElementById('botsList');
   if (!el) return;
   try {
     const r = await api('/admin/members?type=bot');
-    el.innerHTML = (r.members || []).map(b => `<div class="msg-item" style="display:flex;gap:10px;align-items:flex-start">
-      ${botAvatar(b)}
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${escapeHtml(b.name)}</b> <small>${escapeHtml(b.role || '')}</small></div>
-        <div style="margin-top:2px">${botStatus(b)}</div>
-        <br><small>${escapeHtml(b.description || '')}</small>
-        ${USER.role === 'admin' ? `<br><button onclick="toggleBotPause('${b.id}')" style="margin-top:4px">${b.paused ? 'Resume' : 'Pause'}</button>` : ''}
-      </div>
-    </div>`).join('') || '<small>No bots.</small>';
+    const bots = r.members || [];
+    el.innerHTML = bots.length ? '<div class="bot-grid">' + bots.map(b => `<div class="bot-card ${botWorking(b)?'busy':'off'}" title="${escapeHtml(b.description||'')}">
+      <div class="bot-stage">${botChar(b)}</div>
+      <b>${escapeHtml(b.name)}</b><small>${escapeHtml(b.role||'')}</small>
+      <div style="margin-top:3px">${botStatus(b)}</div>
+      ${USER.role === 'admin' ? `<button onclick="toggleBotPause('${b.id}')" style="margin-top:5px;padding:3px 10px;font-size:11px">${b.paused ? 'Resume' : 'Pause'}</button>` : ''}
+    </div>`).join('') + '</div>' : '<small>No bots.</small>';
   } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
 }
 // Keep bot duty status live while the Bots tab is open

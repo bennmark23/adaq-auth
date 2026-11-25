@@ -109,7 +109,11 @@ function registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clie
       status: (Date.now() - (u.last_active || 0) < 60000) ? 'online' : 'offline',
       last_active: u.last_active, created_at: u.created_at, avatar: u.avatar,
     }));
-    const botsMapped = botsList.map(b => ({ ...publicBot(b), type: 'bot', avatar: null }));
+    const botsMapped = botsList.map(b => {
+      const rc = db.prepare('SELECT COUNT(*) AS c FROM reports WHERE author_bot=?').get(b.id);
+      const jc = db.prepare("SELECT COUNT(*) AS c FROM job_runs WHERE bot_id=? AND status='running'").get(b.id);
+      return { ...publicBot(b), type: 'bot', avatar: null, reports_count: rc.c, running_jobs: jc.c };
+    });
     let all = [...botsMapped, ...usersList];
     if (type === 'bot') all = botsMapped;
     if (type === 'user') all = usersList;
