@@ -445,6 +445,71 @@ async function loadJournal() {
   } catch (e) {}
 }
 
+async function loadDesigns() {
+  const el = document.getElementById('designReviewList');
+  if (!el) return;
+  try {
+    const r = await api('/designs');
+    const ds = r.designs || [];
+    const badge = document.getElementById('designBadge');
+    const pending = ds.filter(d => d.status === 'PENDING_REVIEW').length;
+    if (badge) { badge.style.display = pending ? '' : 'none'; badge.textContent = pending; }
+    el.innerHTML = ds.length ? ds.map(d => {
+      const final = d.status === 'APPROVED' || d.status === 'REVISION_QUEUED' || d.status === 'IN_REVISION' || d.status === 'REJECTED';
+      const color = d.status === 'APPROVED' ? '#16c784' : (d.status === 'PENDING_REVIEW' ? '#f5a524' : '#8791a3');
+      return `<div class="card" style="margin-top:6px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <img src="${escapeHtml(d.preview_url || '/icon-192.png')}" onerror="this.onerror=null;this.src='/icon-192.png'" style="width:56px;height:56px;border-radius:8px;object-fit:cover;flex:none" alt="">
+          <div style="flex:1;min-width:0">
+            <b>${escapeHtml(d.title)}</b> <small>v${d.version}</small>
+            <div style="font-size:11px;color:${color};font-weight:700;margin-top:2px">${escapeHtml(d.status)}</div>
+            <small style="display:block;color:var(--mu)">${escapeHtml(d.summary || '')}</small>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="showDesignHistory(${d.id})">History (${(d.revisions||[]).length})</button>
+          ${final ? `<button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" disabled>${escapeHtml(d.status)}</button>` : `
+          <button class="btn btn-primary" style="padding:6px 10px;font-size:11px" onclick="decideDesign(${d.id},'accept')">I Accept this design to implement</button>
+          <button class="btn btn-danger" style="padding:6px 10px;font-size:11px" onclick="decideDesign(${d.id},'reject')">I Reject it</button>`}
+        </div>
+      </div>`;
+    }).join('') : '<small>No design reports yet.</small>';
+  } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
+}
+async function decideDesign(id, decision) {
+  let feedback = '';
+  if (decision === 'reject') { feedback = prompt('Feedback for Mr. Designer (optional):') || ''; }
+  try {
+    if (decision === 'accept') {
+      const r = await api('/designs/' + id + '/accept', { method: 'POST', body: {} });
+      alert('Design approved. Implementation-ready master prompt generated and sent to the pipeline.\n\n' + String(r.prompt || '').slice(0, 500) + '...');
+    } else {
+      await api('/designs/' + id + '/reject', { method: 'POST', body: { feedback } });
+      alert('Design rejected and sent back to Mr. Designer.');
+    }
+    loadDesigns();
+  } catch (e) { alert(e.message); }
+}
+async function showDesignHistory(id) {
+  const box = document.getElementById('designHistory');
+  if (!box) return;
+  try {
+    const r = await api('/designs/' + id + '/history');
+    box.style.display = 'block';
+    box.innerHTML = '<h4 style="margin:6px 0">Revision history</h4>' + (r.history || []).map(h =>
+      `<div class="msg-item"><small>${new Date(h.created_at).toLocaleString()}</small> <b>v${h.version}</b> ${escapeHtml(h.status)}${h.feedback ? '<br><small>' + escapeHtml(h.feedback) + '</small>' : ''}</div>`).join('');
+  } catch (e) { box.textContent = e.message; }
+}
+async function addDesignReport() {
+  const title = prompt('Design title:');
+  if (!title) return;
+  const summary = prompt('Short summary:') || '';
+  try {
+    await api('/designs', { method: 'POST', body: { title, summary, preview_url: '/icon-192.png' } });
+    loadDesigns();
+  } catch (e) { alert(e.message); }
+}
+
 // ---- Admin ----
 async function loadAdmin() {
   try {
@@ -579,7 +644,7 @@ function switchAdminTab2(t) {
   });
   if (t === 'bots') loadBots();
   if (t === 'users') loadUsers();
-  if (t === 'reports') loadReports();
+  if (t === 'reports') { loadReports(); loadDesigns(); }
   if (t === 'meeting') loadMeeting();
 }
 // Lightweight pixel-style bot characters in one shared office room (CSS/SVG only)

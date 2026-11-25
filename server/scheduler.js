@@ -190,6 +190,27 @@ function initScheduler(db, logActivity) {
     }
   });
 
+  // Design revision queue: Mr. Designer picks up queued rejections when ON DUTY.
+  setInterval(() => {
+    try {
+      const now = toManila(new Date());
+      if (!isOnDuty(now) || isOnBreak(now)) return;
+      const task = db.prepare("SELECT * FROM design_tasks WHERE status='QUEUED' ORDER BY created_at ASC LIMIT 1").get();
+      if (!task) return;
+      const design = db.prepare('SELECT * FROM designs WHERE id=?').get(task.design_id);
+      if (!design) { db.prepare('UPDATE design_tasks SET status=? WHERE id=?').run('DONE', task.id); return; }
+      db.prepare('UPDATE design_tasks SET status=?,picked_up_at=? WHERE id=?').run('IN_PROGRESS', Date.now(), task.id);
+      const next = design.version + 1;
+      db.prepare("UPDATE designs SET version=?,status='IN_REVISION',updated_at=? WHERE id=?").run(next, Date.now(), design.id);
+      db.exec(`INSERT INTO design_revisions (design_id,version,status,feedback,created_at) VALUES (${design.id},${next},'IN_REVISION',${task.feedback ? "'" + String(task.feedback).replace(/'/g, "''") + "'" : 'NULL'},${Date.now()})`);
+      logActivity(0, 'design_revision_started', 'Mr. Designer started v' + next + ' of design #' + design.id);
+      // Mr. Designer resubmits the revised design to Mr. Admin for review.
+      db.prepare("UPDATE designs SET status='PENDING_REVIEW',updated_at=? WHERE id=?").run(Date.now(), design.id);
+      db.prepare("UPDATE design_tasks SET status=?,done_at=? WHERE id=?").run('DONE', Date.now(), task.id);
+      db.exec(`INSERT INTO design_revisions (design_id,version,status,created_at) VALUES (${design.id},${next},'PENDING_REVIEW',${Date.now()})`);
+    } catch (e) { console.log('design queue error:', e.message); }
+  }, 60 * 1000);
+
   // Mark all bots as online on startup
   db.prepare("UPDATE bots SET status='online', last_heartbeat=?").run(Date.now());
 

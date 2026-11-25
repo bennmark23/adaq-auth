@@ -1005,6 +1005,14 @@ function switchAdminTab(t){
   </div>
   <div id="adminTab2_reports" style="display:none">
     <h3>Reports</h3>
+    <div id="designReview" style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--bd)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h3 style="margin:4px 0">Mr. Admin Report <span id="designBadge" class="nbadge" style="display:none"></span></h3>
+        <button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="addDesignReport()">+ Design report</button>
+      </div>
+      <div id="designReviewList"><small>Loading design reports...</small></div>
+      <div id="designHistory" style="display:none;margin-top:8px"></div>
+    </div>
     <div style="margin-bottom:8px">
       <select id="reportFilter"><option value="">All</option><option value="new">Unread</option><option value="read">Read</option><option value="done">Done</option><option value="to_priority">Priority</option></select>
       <select id="reportTypeFilter"><option value="">All types</option></select>
