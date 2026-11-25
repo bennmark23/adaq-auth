@@ -6,6 +6,9 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { authenticator } = require('otplib');
+// Tolerate small clock drift / codes entered near the 30s boundary:
+// accept the previous, current and next step (otplib default is window 0).
+authenticator.options = { window: 1 };
 const QRCode = require('qrcode');
 const multer = require('multer');
 const cors = require('cors');
@@ -188,7 +191,7 @@ app.post('/api/auth/login', (req, res) => {
   }
   if (user.totp_enabled) {
     if (!totp) return res.status(401).json({ error: 'TOTP required', totpRequired: true });
-    const ok = authenticator.verify({ token: totp, secret: user.totp_secret });
+    const ok = authenticator.verify({ token: String(totp || '').replace(/[\s-]/g, ''), secret: user.totp_secret });
     if (!ok) return res.status(401).json({ error: 'Invalid TOTP' });
   } else {
     // needs enrollment
@@ -204,8 +207,12 @@ app.post('/api/auth/change-password', auth, (req, res) => {
   if (!bcrypt.compareSync(oldPassword || '', req.user.password_hash)) return res.status(401).json({ error: 'Wrong old password' });
   if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'Password too short' });
   const hash = bcrypt.hashSync(newPassword, 10);
-  // generate totp secret for enrollment
-  const secret = authenticator.generateSecret();
+  // Reuse a pending (not yet enabled) secret so going Back and re-submitting
+  // does not invalidate a QR the user already scanned. Only generate a new
+  // secret when none exists or TOTP is already enabled.
+  const secret = (!req.user.totp_enabled && req.user.totp_secret)
+    ? req.user.totp_secret
+    : authenticator.generateSecret();
   db.prepare('UPDATE users SET password_hash=?,password_must_change=0,totp_secret=?,totp_enabled=0 WHERE id=?').run(hash, secret, req.user.id);
   const otpauth = authenticator.keyuri(req.user.username, 'ADAQ', secret);
   QRCode.toDataURL(otpauth, (err, url) => {
@@ -218,7 +225,7 @@ app.post('/api/auth/enroll-totp', auth, (req, res) => {
   const { code } = req.body || {};
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(req.user.id);
   if (!user.totp_secret) return res.status(400).json({ error: 'No pending secret' });
-  const ok = authenticator.verify({ token: code, secret: user.totp_secret });
+  const ok = authenticator.verify({ token: String(code || '').replace(/[\s-]/g, ''), secret: user.totp_secret });
   if (!ok) return res.status(401).json({ error: 'Invalid code' });
   db.prepare('UPDATE users SET totp_enabled=1 WHERE id=?').run(user.id);
   logActivity(user.id, 'totp_enrolled', null);
@@ -455,7 +462,7 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-24-v4' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v5' }));
 
 // Register bot API (must be before the catch-all)
 const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);

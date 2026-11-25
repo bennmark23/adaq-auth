@@ -16,6 +16,7 @@
     <img id="enrollQr" style="width:200px;height:200px;background:#fff;border-radius:8px">
     <div id="enrollSecret" style="word-break:break-all;font-family:monospace;margin:8px 0;color:#e6e9ef;background:#141a24;padding:8px;border-radius:8px"></div>
     <input id="enrollCode" placeholder="6-digit code" style="background:#fff;color:#000">
+    <small style="color:#9aa4b5;display:block;margin:6px 0 10px">Codes change every 30 seconds. If a correct code is rejected, set your phone's date &amp; time to automatic, then try the newest code.</small>
     <button onclick="doEnroll()">Verify & Enable</button>
     <button onclick="doBack()">Back</button>
     <div id="enrollMsg" style="color:#ea3943;margin-top:8px"></div>
@@ -83,7 +84,9 @@ async function doEnroll() {
   try {
     const r = await fetch(API + '/auth/enroll-totp', { method: 'POST', headers: {'content-type':'application/json','authorization':'Bearer '+sessionStorage.getItem('adaq_token')}, body: JSON.stringify({code}) });
     const j = await r.json();
-    if (!r.ok) throw new Error(j.error || 'Failed');
+    if (!r.ok) throw new Error(j.error === 'Invalid code'
+      ? "Invalid code. Use the newest code (it changes every 30s). If it keeps failing, set your phone's date & time to automatic."
+      : (j.error || 'Failed'));
     document.getElementById('enrollModal').classList.add('hidden');
     location.href = '/';
   } catch (e) { msg.textContent = e.message; }
