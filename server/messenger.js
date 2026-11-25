@@ -248,7 +248,8 @@ function registerRoutes(app, db, auth, broadcast) {
       if (db.prepare('SELECT 1 FROM chat_message_deletes WHERE message_id=? AND user_id=?').get(m.id, req.user.id)) return null;
       const reactions = db.prepare('SELECT emoji,COUNT(*) AS n FROM chat_reactions WHERE message_id=? GROUP BY emoji').all(m.id).map(r => ({ emoji: r.emoji, n: r.n }));
       const att = db.prepare('SELECT * FROM chat_attachments WHERE message_id=?').get(m.id);
-      return { ...m, reactions, attachment: att ? { path: att.path, thumbnail: att.thumbnail, name: att.name, kind: att.kind, mime: att.mime } : null };
+      const seen = db.prepare('SELECT 1 FROM chat_reads WHERE message_id=? AND user_id<>? LIMIT 1').get(m.id, req.user.id);
+      return { ...m, reactions, seen: !!seen, attachment: att ? { path: att.path, thumbnail: att.thumbnail, name: att.name, kind: att.kind, mime: att.mime } : null };
     }).filter(Boolean);
     db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
     db.prepare('INSERT OR REPLACE INTO chat_reads (message_id,user_id,read_at) SELECT id,?,? FROM chat_messages WHERE conversation_id=?').run(req.user.id, Date.now(), id);
@@ -317,6 +318,60 @@ function registerRoutes(app, db, auth, broadcast) {
     const counts = db.prepare('SELECT emoji,COUNT(*) AS n FROM chat_reactions WHERE message_id=? GROUP BY emoji').all(m.id).map(r => ({ emoji: r.emoji, n: r.n }));
     emitChat(broadcast, db, m.conversation_id, 'chat_updated', { id: m.id, reactions: counts });
     res.json({ reactions: counts });
+  });
+  app.post('/api/chat/groups', ...A, (req, res) => {
+    const b = req.body || {};
+    const name = String(b.name || '').trim().slice(0, 80);
+    if (name.length < 2) return res.status(400).json({ error: 'Group name required' });
+    const ids = Array.isArray(b.member_ids) ? [...new Set(b.member_ids.map(Number).filter(x => x > 0 && x !== req.user.id))] : [];
+    const members = [req.user.id, ...ids].filter(id => {
+      const u = db.prepare('SELECT * FROM users WHERE id=?').get(id);
+      return u && u.role === 'user' && !isBotUsername(u.username);
+    });
+    if (members.length < 2) return res.status(400).json({ error: 'Add at least one real user (bots and admins cannot be added)' });
+    const now = Date.now();
+    const info = db.prepare("INSERT INTO chat_conversations (type,name,avatar,created_by,created_at,last_message_at) VALUES ('group',?,?,?,?,?)")
+      .run(name, '/default-avatar.svg', req.user.id, now, now);
+    const id = Number(info.lastInsertRowid);
+    for (const uid of members) db.prepare('INSERT INTO chat_members (conversation_id,user_id,role,joined_at) VALUES (?,?,?,?)').run(id, uid, uid === req.user.id ? 'admin' : 'member', now);
+    db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'system', name + ' group created', now);
+    res.json({ conversation: publicMember(db, db.prepare('SELECT * FROM chat_conversations WHERE id=?').get(id), req.user.id) });
+  });
+  app.patch('/api/chat/groups/:id', ...A, (req, res) => {
+    const id = Number(req.params.id);
+    const mine = assertConversationAccess(db, req.user.id, id);
+    if (mine.role !== 'admin') return res.status(403).json({ error: 'Only group admins can manage members' });
+    const b = req.body || {};
+    if (b.add_id) {
+      const u = db.prepare('SELECT * FROM users WHERE id=?').get(Number(b.add_id));
+      if (!u || u.role !== 'user' || isBotUsername(u.username)) return res.status(400).json({ error: 'Only real users can be added' });
+      db.prepare('INSERT OR REPLACE INTO chat_members (conversation_id,user_id,role,joined_at) VALUES (?,?,?,?)').run(id, u.id, 'member', Date.now());
+      db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'system', u.username + ' was added', Date.now());
+    }
+    if (b.remove_id) {
+      const uid = Number(b.remove_id);
+      if (uid === req.user.id) return res.status(400).json({ error: 'Use leave instead' });
+      db.prepare('DELETE FROM chat_members WHERE conversation_id=? AND user_id=?').run(id, uid);
+      const u = db.prepare('SELECT username FROM users WHERE id=?').get(uid);
+      db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'system', (u ? u.username : 'A member') + ' was removed', Date.now());
+    }
+    if (b.promote_id) {
+      db.prepare("UPDATE chat_members SET role='admin' WHERE conversation_id=? AND user_id=?").run(id, Number(b.promote_id));
+      const u = db.prepare('SELECT username FROM users WHERE id=?').get(Number(b.promote_id));
+      db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'system', (u ? u.username : 'A member') + ' is now a group admin', Date.now());
+    }
+    if (b.leave) {
+      db.prepare('DELETE FROM chat_members WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
+      db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'system', 'A member left the group', Date.now());
+    }
+    res.json({ ok: true });
+  });
+  app.post('/api/chat/messages/:id/report', ...A, (req, res) => {
+    const m = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(req.params.id));
+    if (!m) return res.status(404).json({ error: 'Not found' });
+    assertConversationAccess(db, req.user.id, m.conversation_id);
+    db.prepare('INSERT INTO chat_reports (reporter_id,message_id,reason,created_at) VALUES (?,?,?,?)').run(req.user.id, m.id, String((req.body && req.body.reason) || '').slice(0, 500), Date.now());
+    res.json({ ok: true });
   });
   app.post('/api/chat/conversations/:id/typing', ...A, (req, res) => {
     const id = Number(req.params.id);

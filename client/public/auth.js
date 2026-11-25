@@ -915,8 +915,10 @@ async function loadChatMessages(id) {
     const msgs = r.messages || [];
     const conv = ((await api('/chat/conversations')).conversations || []).find(c => c.id === Number(id)) || {};
     const canReply = conv.canReply !== false;
-    pane.innerHTML = `<div class="msg-head"><b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small></div>
-      <div class="msg-scroll" id="msgScroll">${msgs.length ? msgs.map(m => {
+    pane.innerHTML = `<div class="msg-head"><b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small>
+      <span style="margin-left:auto;display:flex;gap:4px"><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatBlockToggle(${conv.otherId||0})">Block</button>${conv.type === 'group' ? '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupManage()">Manage</button><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupLeave()">Leave</button>' : ''}</span></div>
+      <div id="typingNote" class="msg-note" style="display:none">typing...</div>
+      <div class="msg-scroll" id="msgScroll"><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="chatLoadOlder()">Load older</button>${msgs.length ? msgs.map(m => {
         const mine = m.sender_id === (USER ? USER.id : 0);
         const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
         const reacts = (m.reactions || []).map(r => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(r.emoji)} ${r.n}</button>`).join('');
@@ -931,13 +933,65 @@ async function loadChatMessages(id) {
             ${mine ? `<button onclick="chatAction(${m.id},'edit')" title="Edit">✎</button><button onclick="chatAction(${m.id},'unsend')" title="Unsend">✕</button>` : ''}
             <button onclick="chatAction(${m.id},'delete')" title="Delete for me">🗑</button>
             <button onclick="chatAction(${m.id},'forward')" title="Forward">➤</button>
+            <button onclick="chatAction(${m.id},'report')" title="Report">🚩</button>
           </div>`}${reacts ? `<div class="reacts">${reacts}</div>` : ''}
-          <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+          <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
         </div>`;
-      }).join('') : '<div class="msg-day">No messages yet</div>'}</div>
-      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">📎<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" title="Emoji">😊</button><input id="chatInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
+      }).join('') : '<div class="msg-day">No messages yet</div>'}</div><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
+      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">📎<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" title="Emoji">😊</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
+}
+async function createGroup() {
+  const name = prompt('Group name:');
+  if (!name) return;
+  const ids = prompt('Member user IDs (comma-separated):') || '';
+  const member_ids = ids.split(',').map(s => Number(s.trim())).filter(Boolean);
+  try {
+    const r = await api('/chat/groups', { method: 'POST', body: { name, member_ids } });
+    loadConversations(); openChat(r.conversation.id);
+  } catch (e) { alert(e.message); }
+}
+function chatSettings() {
+  const s = LS('chat_settings', { sounds: true, online: true, receipts: true });
+  const sounds = confirm('Message sounds? OK = on, Cancel = off');
+  const online = confirm('Show my online status? OK = on, Cancel = off');
+  const receipts = confirm('Read receipts? OK = on, Cancel = off');
+  SV('chat_settings', { sounds, online, receipts });
+}
+async function chatBlockToggle(otherId) {
+  if (!otherId) return;
+  try {
+    const r = await fetch('/api/chat/conversations/' + CHAT_ID + '/block', { method: confirm('Block this user?') ? 'POST' : 'DELETE', headers: { authorization: 'Bearer ' + (sessionStorage.getItem('adaq_token') || '') } });
+    if (!r.ok) throw new Error('Could not update block');
+    alert('Block settings updated');
+  } catch (e) { alert(e.message); }
+}
+async function chatGroupManage() {
+  const add = prompt('Add user ID (blank to skip):');
+  if (add) { try { await api('/chat/groups/' + CHAT_ID, { method: 'PATCH', body: { add_id: Number(add) } }); openChat(CHAT_ID); } catch (e) { alert(e.message); } }
+}
+async function chatGroupLeave() {
+  if (!confirm('Leave this group?')) return;
+  try { await api('/chat/groups/' + CHAT_ID, { method: 'PATCH', body: { leave: true } }); CHAT_ID = null; loadConversations(); document.getElementById('chatPane').innerHTML = '<div class="msg-empty">No messages yet</div>'; }
+  catch (e) { alert(e.message); }
+}
+async function chatLoadOlder() {
+  if (!CHAT_ID) return;
+  const first = document.querySelector('#msgScroll .bubble');
+  if (!first) return;
+  try {
+    const params = '?before=' + encodeURIComponent(first.dataset.id || 0);
+    const r = await api('/chat/conversations/' + CHAT_ID + '/messages' + params);
+    const sc = document.getElementById('msgScroll');
+    if (sc && r.messages.length) sc.insertAdjacentHTML('afterbegin', r.messages.map(m => `<div class="bubble ${m.sender_id === (USER ? USER.id : 0) ? 'mine' : ''}" data-id="${m.id}">${escapeHtml(m.body || '')}<small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`).join(''));
+  } catch (e) {}
+}
+let CHAT_TYPING_T = 0;
+function typingNow() {
+  if (!CHAT_ID || Date.now() - CHAT_TYPING_T < 2000) return;
+  CHAT_TYPING_T = Date.now();
+  api('/chat/conversations/' + CHAT_ID + '/typing', { method: 'POST', body: {} }).catch(() => {});
 }
 let CHAT_XHR = null;
 function insertEmoji() {
@@ -983,6 +1037,7 @@ async function chatAction(id, action) {
     else if (action === 'unsend') { if (!confirm('Remove this message for everyone?')) return; await api('/chat/messages/' + id + '?mode=everyone', { method: 'DELETE' }); }
     else if (action === 'delete') { await api('/chat/messages/' + id, { method: 'DELETE' }); }
     else if (action === 'forward') { const to = prompt('Forward to conversation ID:'); if (!to) return; const msgs = (await api('/chat/conversations/' + CHAT_ID + '/messages')).messages || []; const m = msgs.find(x => x.id === Number(id)); if (m) await api('/chat/conversations/' + to + '/messages', { method: 'POST', body: { body: m.body } }); return; }
+    else if (action === 'report') { const reason = prompt('Report reason:'); if (!reason) return; await api('/chat/messages/' + id + '/report', { method: 'POST', body: { reason } }); alert('Report sent for review'); return; }
     if (CHAT_ID) await loadChatMessages(CHAT_ID);
   } catch (e) { alert(e.message); }
 }
@@ -998,11 +1053,29 @@ async function sendChatMessage() {
     const r = await api('/chat/conversations/' + CHAT_ID + '/messages', { method: 'POST', body: payload });
     if (r.message) { const sc = document.getElementById('msgScroll'); if (sc) sc.insertAdjacentHTML('beforeend', `<div class="bubble mine">${escapeHtml(r.message.body || '')}<small>${new Date(r.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`); if (sc) sc.scrollTop = sc.scrollHeight; }
     loadConversations();
-  } catch (e) { if (input) input.value = body; alert(e.message); }
+  } catch (e) {
+    if (input) input.value = body;
+    if (!navigator.onLine) { const q = LS('chat_queue', []); q.push({ cid: CHAT_ID, body }); SV('chat_queue', q); alert('Offline - message queued'); }
+    else alert(e.message);
+  }
 }
+window.addEventListener('online', async () => {
+  const q = LS('chat_queue', []);
+  for (const item of q) { try { await api('/chat/conversations/' + item.cid + '/messages', { method: 'POST', body: { body: item.body } }); } catch (e) {} }
+  SV('chat_queue', []);
+  if (CHAT_ID) loadChatMessages(CHAT_ID);
+});
 window.addEventListener('adaq:chat', e => {
   const t = e.detail;
-  if (t && (t.type === 'chat_message' || t.type === 'chat_updated') && t.data && t.data.conversation_id === CHAT_ID) loadChatMessages(CHAT_ID);
+  if (t && t.type === 'chat_message' && t.data && t.data.conversation_id === CHAT_ID) {
+    loadChatMessages(CHAT_ID);
+    const st = LS('chat_settings', { sounds: true, online: true, receipts: true });
+    if (st.sounds !== false) { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 720; o.start(); o.stop(a.currentTime + .12); } catch (x) {} }
+  }
+  if (t && t.type === 'chat_typing') {
+    const note = document.getElementById('typingNote');
+    if (note) { note.style.display = 'block'; clearTimeout(window.__typingHide); window.__typingHide = setTimeout(() => { note.style.display = 'none'; }, 2500); }
+  }
   refreshUnread();
 });
 

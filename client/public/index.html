@@ -1002,7 +1002,8 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
 <div id="messengerModal" class="modal hidden"><div class="sheet ui-sheet msg-sheet">
   <div class="ui-head">
     <div><h3 style="margin:0">Messenger</h3><small class="muted">Your private conversations</small></div>
-    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden')">×</button>
+    <div style="display:flex;gap:6px"><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="createGroup()">+ Group</button><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="chatSettings()">⚙</button>
+    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden')">×</button></div>
   </div>
   <div class="msg-layout">
     <div class="msg-inbox"><div id="convList"><small>Loading conversations...</small></div></div>
