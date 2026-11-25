@@ -238,6 +238,7 @@ async function afterLogin() {
 
 function logout() {
   TOKEN = ''; sessionStorage.removeItem('adaq_token'); USER = null;
+  if (typeof S !== 'undefined' && S) { S.bannerLocked = true; S.stickySig = null; S.sig = null; }
   showLogin();
   document.getElementById('loginBox').style.display = 'block';
   document.getElementById('registerBox').style.display = 'none';
