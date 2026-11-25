@@ -15,30 +15,37 @@ body{background:var(--bg);color:var(--tx)}
 .card{background:var(--card);border:1px solid var(--bd)}
 button,select,input{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
 #app{max-width:960px;margin:0 auto}
-#v-admin{max-width:960px;margin:0 auto;padding:8px 12px 74px;width:100%;box-sizing:border-box}
+#v-admin{max-width:960px;margin:0 auto;padding:8px 12px calc(env(safe-area-inset-bottom,0px) + 96px);width:100%;box-sizing:border-box}
 .msg-item{padding:8px;border-bottom:1px solid var(--bd)}
 .online{color:#16c784}.offline{color:#ea3943}
 .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#232c3b}
 .tabbar{display:flex;gap:6px;margin:8px 0}
 .tabbar button{flex:1;padding:8px;border:0;background:none;color:var(--mu)}
 .tabbar button.on{background:var(--card);color:var(--tx)}
+.bot-room{position:relative;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-around;gap:6px 4px;min-height:206px;padding:14px 6px 40px;margin-bottom:10px;border:1px solid var(--bd);border-radius:12px;overflow:hidden;background:linear-gradient(#232d40 0 62%,#1a2230 62% 100%)}
+.bot-room::before{content:'';position:absolute;left:0;right:0;bottom:0;height:26px;background:repeating-linear-gradient(90deg,#6b4a2f 0 18px,#5a3d27 18px 20px)}
+.room-window{position:absolute;left:10px;top:10px;width:44px;height:30px;border:3px solid #38455c;background:linear-gradient(#243a5c,#16233a);box-shadow:inset 0 0 0 2px #0b0e14}
+.room-clock{position:absolute;right:12px;top:12px;width:22px;height:22px;border-radius:50%;border:3px solid #38455c;background:#0b0e14}
+.room-plant{position:absolute;right:16px;bottom:26px;width:16px;height:24px;background:linear-gradient(#10b981,#047857);clip-path:polygon(50% 0,100% 60%,70% 60%,85% 100%,15% 100%,30% 60%,0 60%)}
+.room-desk{position:absolute;left:50%;transform:translateX(-50%);bottom:26px;width:56%;height:8px;border-radius:3px;background:#7c5638;opacity:.85}
+.bot-unit{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;min-width:40px}
+.bot-pixel{width:32px;height:44px;image-rendering:pixelated}
+.bot-unit.awake .bot-pixel{animation:pixelBob 1.2s steps(2,end) infinite}
+.bot-unit.sleeping .bot-pixel{filter:grayscale(.8);opacity:.6}
+.bot-unit-name{font-size:9px;color:var(--mu);max-width:52px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zzz{position:absolute;top:-8px;right:-2px;font-size:10px;font-weight:700;color:#9bc4ff;animation:zzzFloat 2.4s ease-in-out infinite}
+.px-eye{animation:pxBlink 5s infinite}
+.px-arm{animation:pxType .5s steps(2,end) infinite alternate;transform-origin:center}
+.px-arm2{animation:pxType .4s steps(2,end) infinite alternate-reverse}
+.bot-unit.sleeping .px-eye,.bot-unit.sleeping .px-arm,.bot-unit.sleeping .px-arm2{animation:none}
+@keyframes pixelBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes pxType{to{transform:rotate(14deg)}}
+@keyframes pxBlink{0%,96%,100%{opacity:1}98%{opacity:.15}}
+@keyframes zzzFloat{0%{opacity:.2;transform:translate(0,0)}50%{opacity:1;transform:translate(4px,-7px)}100%{opacity:0;transform:translate(8px,-14px)}}
+@media (prefers-reduced-motion:reduce){.bot-pixel,.px-eye,.px-arm,.px-arm2,.zzz{animation:none!important}}
+.bot-roster-title{font-size:11px;color:var(--mu);margin:10px 0 4px;font-weight:600}
+.bot-roster{display:grid;gap:4px;padding-bottom:8px}
+.bot-roster .msg-item{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .bot-avatar{width:36px;height:36px;flex:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;letter-spacing:.5px}
-.bot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(142px,1fr));gap:8px}
-.bot-card{border:1px solid var(--bd);border-radius:12px;background:var(--card);padding:8px;text-align:center;overflow:hidden}
-.bot-card b{display:block;margin-top:2px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bot-card small{color:var(--mu);font-size:10px}
-.bot-stage{position:relative;height:96px;border-radius:9px;overflow:hidden;perspective:520px;background:linear-gradient(160deg,#1c2534 0%,#111722 70%)}
-.bot-stage::before{content:'';position:absolute;left:6%;right:6%;bottom:0;height:20px;border-radius:5px 5px 0 0;background:linear-gradient(#6b4a2f,#3d2a1c)}
-.bot-stage::after{content:'';position:absolute;right:8px;top:12px;width:26px;height:19px;border-radius:3px;background:#0b0e14;border:2px solid #2a3445;box-shadow:inset 0 0 0 2px #16c78433}
-.bot-char{position:relative;display:block;width:78px;height:88px;margin:0 auto;transform-style:preserve-3d;animation:botBob 3.2s ease-in-out infinite}
-.bot-arm{animation:botType .6s ease-in-out infinite alternate;transform-origin:center}
-.bot-arm2{animation:botType .5s ease-in-out infinite alternate-reverse}
-.bot-eye{animation:botBlink 4.5s infinite}
-.bot-card.off .bot-char{animation:none;filter:grayscale(.85);opacity:.6}
-.bot-card.off .bot-arm,.bot-card.off .bot-arm2,.bot-card.off .bot-eye{animation:none}
-@keyframes botBob{0%,100%{transform:translateY(0) rotateY(-7deg)}50%{transform:translateY(-4px) rotateY(7deg)}}
-@keyframes botType{to{transform:rotate(18deg)}}
-@keyframes botBlink{0%,96%,100%{opacity:1}98%{opacity:.15}}
-@media (prefers-reduced-motion:reduce){.bot-char,.bot-arm,.bot-arm2,.bot-eye{animation:none!important}}
 .bot-on{color:#16c784;font-weight:600;font-size:11px}
 .bot-off{color:#8791a3;font-weight:600;font-size:11px}
