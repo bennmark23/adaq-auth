@@ -97,6 +97,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
       <img id="topAvatar" src="icon-192.png" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#232c3b">
       <span id="topUsername" style="font-size:13px">Profile</span>
     </button>
+    <button id="msgIconBtn" onclick="openMessenger()" title="Messenger" style="position:relative;display:none;border:1px solid var(--bd);background:var(--card);border-radius:20px;padding:6px 10px;cursor:pointer;font-size:16px">💬<span id="msgUnread" class="nbadge" style="display:none"></span></button>
   </div>
 </header>
 <div id="banner" class="ban none"></div>
@@ -996,6 +997,16 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
     <button class="btn btn-ghost" onclick="openChangePassword()">Change Password</button>
     <button class="btn btn-primary" onclick="saveProfile()">Save changes</button>
     <button class="btn btn-danger" onclick="logout()">Log out</button>
+  </div>
+</div></div>
+<div id="messengerModal" class="modal hidden"><div class="sheet ui-sheet msg-sheet">
+  <div class="ui-head">
+    <div><h3 style="margin:0">Messenger</h3><small class="muted">Your private conversations</small></div>
+    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden')">×</button>
+  </div>
+  <div class="msg-layout">
+    <div class="msg-inbox"><div id="convList"><small>Loading conversations...</small></div></div>
+    <div class="msg-thread" id="chatPane"><div class="msg-empty">No messages yet</div></div>
   </div>
 </div></div>
 <div id="adminModal" class="modal hidden"><div class="sheet ui-sheet">

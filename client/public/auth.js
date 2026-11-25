@@ -243,6 +243,12 @@ async function afterLogin() {
   // Admin's Features nav item (admin only)
   const adminNav = document.getElementById('adminNavBtn');
   if (adminNav) adminNav.style.display = USER.role === 'admin' ? '' : 'none';
+  const msgIcon = document.getElementById('msgIconBtn');
+  if (msgIcon) msgIcon.style.display = USER.role === 'user' ? '' : 'none';
+  if (USER.role === 'user') {
+    refreshUnread();
+    if (!window.__msgPoll) { window.__msgPoll = setInterval(() => { if (TOKEN) refreshUnread(); }, 15000); }
+  }
   console.log('ADMIN afterLogin: role=', USER.role, 'adminBtn=', adminBtn ? adminBtn.style.display : 'none', 'adminNav=', adminNav ? adminNav.style.display : 'none');
   // profile name
   const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
@@ -524,13 +530,20 @@ async function loadAdmin() {
   try {
     const r = await api('/admin/users');
     const el = document.getElementById('adminUsers');
-    if (el) el.innerHTML = (r.users || []).map(u => `<div class="msg-item">${escapeHtml(u.username)} <span class="${u.online ? 'online' : 'offline'}">?</span> <small>${u.role} ? ${u.online ? 'online' : 'offline'}</small><br>${u.id !== USER.id && u.role !== 'admin' ? `<button onclick="deleteUser(${u.id})" style="margin-right:4px">Delete</button>` : ''}${u.id !== USER.id ? ` <button onclick="genRecovery(${u.id})">Recovery Link</button>` : ''}<div id="rec_${u.id}" style="word-break:break-all;font-size:11px;margin-top:4px"></div></div>`).join('');
+    if (el) el.innerHTML = (r.users || []).map(u => `<div class="msg-item">${escapeHtml(u.username)} <span class="${u.online ? 'online' : 'offline'}">?</span> <small>${u.role} ? ${u.online ? 'online' : 'offline'}</small><br>${u.id !== USER.id && u.role !== 'admin' ? `<button onclick="deleteUser(${u.id})" style="margin-right:4px">Delete</button>` : ''}${u.id !== USER.id && u.role === 'user' ? ` <button onclick="adminMessageUser(${u.id})">Message</button>` : ''}${u.id !== USER.id ? ` <button onclick="genRecovery(${u.id})">Recovery Link</button>` : ''}<div id="rec_${u.id}" style="word-break:break-all;font-size:11px;margin-top:4px"></div></div>`).join('');
   } catch (e) {}
   try {
     const r = await api('/admin/activity');
     const el = document.getElementById('adminActivity');
     if (el) el.innerHTML = (r.activity || []).slice(0, 50).map(a => `<div class="msg-item"><small>${new Date(a.created_at).toLocaleString()}</small> <b>${escapeHtml(a.username || '')}</b> ${a.kind === 'bot' ? '<span class="tag">BOT</span> ' : ''}${escapeHtml(a.action)} ${escapeHtml(a.detail || '')}</div>`).join('');
   } catch (e) {}
+}
+async function adminMessageUser(id) {
+  try {
+    const r = await api('/chat/conversations', { method: 'POST', body: { target_id: id } });
+    openMessenger();
+    if (r.conversation) openChat(r.conversation.id);
+  } catch (e) { alert(e.message); }
 }
 async function createInvite() {
   const role = document.getElementById('inviteRole').value;
@@ -563,6 +576,7 @@ function connectWS() {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.type === 'announcement') { loadAnnouncements(); }
     if (m.type === 'message') { loadMessages(); }
+    if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
   };
   ws.onclose = () => { setTimeout(connectWS, 3000); };
 }
@@ -859,4 +873,70 @@ window.announceNext = announceNext;
 window.announcePrev = announcePrev;
 window.loadJournal = loadJournal; window.loadAdmin = loadAdmin; window.createInvite = createInvite;
 window.sendAnnouncement = sendAnnouncement; window.sendMessage = sendMessage; window.loadMessages = loadMessages;
+// ---- In-house Messenger (Phase 5) ----
+let CHAT_ID = null;
+async function refreshUnread() {
+  const badge = document.getElementById('msgUnread');
+  if (!badge) return;
+  try {
+    const r = await api('/chat/unread');
+    badge.textContent = r.unread;
+    badge.style.display = r.unread ? '' : 'none';
+  } catch (e) {}
+}
+async function openMessenger() {
+  document.getElementById('messengerModal').classList.remove('hidden');
+  await loadConversations();
+  refreshUnread();
+}
+async function loadConversations() {
+  const el = document.getElementById('convList');
+  if (!el) return;
+  try {
+    const r = await api('/chat/conversations');
+    const cs = r.conversations || [];
+    el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}" onclick="openChat(${c.id})">
+      <img src="${escapeHtml(c.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt="">
+      <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
+      ${c.online ? '<i class="dot"></i>' : ''}${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
+    </button>`).join('') : '<div class="msg-empty">No messages yet</div>';
+  } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
+}
+async function openChat(id) {
+  CHAT_ID = Number(id);
+  await loadChatMessages(CHAT_ID);
+  loadConversations();
+}
+async function loadChatMessages(id) {
+  const pane = document.getElementById('chatPane');
+  if (!pane) return;
+  try {
+    const r = await api('/chat/conversations/' + id + '/messages');
+    const msgs = r.messages || [];
+    const conv = ((await api('/chat/conversations')).conversations || []).find(c => c.id === Number(id)) || {};
+    const canReply = conv.canReply !== false;
+    pane.innerHTML = `<div class="msg-head"><b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small></div>
+      <div class="msg-scroll" id="msgScroll">${msgs.length ? msgs.map(m => `<div class="bubble ${m.sender_id === (USER ? USER.id : 0) ? 'mine' : ''}">${escapeHtml(m.body || '')}<small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`).join('') : '<div class="msg-day">No messages yet</div>'}</div>
+      ${canReply ? `<div class="msg-compose"><input id="chatInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
+    const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
+  } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
+}
+async function sendChatMessage() {
+  if (!CHAT_ID) return;
+  const input = document.getElementById('chatInput');
+  const body = input ? input.value.trim() : '';
+  if (!body) return;
+  if (input) input.value = '';
+  try {
+    const r = await api('/chat/conversations/' + CHAT_ID + '/messages', { method: 'POST', body: { body } });
+    if (r.message) { const sc = document.getElementById('msgScroll'); if (sc) sc.insertAdjacentHTML('beforeend', `<div class="bubble mine">${escapeHtml(r.message.body || '')}<small>${new Date(r.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`); if (sc) sc.scrollTop = sc.scrollHeight; }
+    loadConversations();
+  } catch (e) { if (input) input.value = body; alert(e.message); }
+}
+window.addEventListener('adaq:chat', e => {
+  const t = e.detail;
+  if (t && t.type === 'chat_message' && t.data && t.data.conversation_id === CHAT_ID) loadChatMessages(CHAT_ID);
+  refreshUnread();
+});
+
 window.__authLoaded = 'done';

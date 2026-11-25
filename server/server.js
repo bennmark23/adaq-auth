@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS recovery_tokens (
 `);
 // New feature tables (additive migrations; existing tables are untouched).
 const { setup: setupDesigns, registerRoutes: registerDesignRoutes } = require('./designs');
-const { setup: setupMessenger } = require('./messenger');
+const { setup: setupMessenger, registerRoutes: registerMessengerRoutes } = require('./messenger');
 setupDesigns(db);
 setupMessenger(db);
 
@@ -626,7 +626,7 @@ app.get('/api/presence', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v33' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v34' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
@@ -660,6 +660,8 @@ app.use('/api/market', async (req, res) => {
 
 // Design approval flow (Mr. Designer -> Mr. Admin -> owner review)
 registerDesignRoutes(app, db, auth, requireRole, logActivity, broadcast);
+// In-house Messenger (own DB + own WebSocket)
+registerMessengerRoutes(app, db, auth, broadcast);
 
 // Register bot API (must be before the catch-all)
 const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);
