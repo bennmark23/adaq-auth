@@ -50,7 +50,7 @@ function api(path, opts) {
   return fetch(url, opts).then(async r => {
     const t = await r.text();
     let j = null; try { j = JSON.parse(t); } catch (e) { j = { raw: t }; }
-    if (!r.ok) throw new Error((j && j.error) || r.statusText);
+    if (!r.ok) { const err = new Error((j && j.error) || r.statusText); err.status = r.status; throw err; }
     return j;
   });
 }
@@ -484,8 +484,15 @@ async function init() {
   const token = getInviteToken();
   if (token) { showRegister(token); return; }
   if (TOKEN) {
-    try { USER = (await api('/auth/me')).user; hideLogin(); await afterLogin(); return; }
-    catch (e) { logout(); return; }
+    // A refresh can hit a cold server / slow network: retry before deciding the session is gone.
+    // Only a real 401 means the session is invalid.
+    let me = null;
+    for (let i = 0; i < 3; i++) {
+      try { me = (await api('/auth/me')).user; break; }
+      catch (e) { if (e.status === 401) break; await new Promise(r => setTimeout(r, 600 * (i + 1))); }
+    }
+    if (me) { USER = me; hideLogin(); await afterLogin(); return; }
+    logout(); return;
   }
   showLogin();
 }

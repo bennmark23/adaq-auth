@@ -16,7 +16,7 @@
 html,body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 #app{max-width:960px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 74px)}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-#topFixed{position:sticky;top:0;z-index:60;background:var(--bg)}
+#topFixed{position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:60;background:var(--bg)}
 body.no-sticky-top #topFixed{position:static}
 .logo{font-size:18px;letter-spacing:3px}
 .mu{color:var(--mu)}.g{color:var(--g)}.rd{color:var(--r)}
@@ -163,7 +163,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 </div>
 <script src="mqtt.min.js"></script>
 <script>
-const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
+const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
 let dirty=false,syncT=0;
 const CL=()=>({u:String(LS('cu','')||'').replace(/\/+$/,''),t:LS('ct','')});
@@ -175,12 +175,12 @@ async function api(path,opt={}){
 function syncDirty(k){if(!SYNCK.includes(k)||!CL().u)return;dirty=true;clearTimeout(syncT);syncT=setTimeout(syncPush,3000)}
 async function syncPush(){
  try{const data={};SYNCK.forEach(k=>{const v=LS(k,undefined);if(v!==undefined)data[k]=v});const ts=Date.now();
-  await api('/api/state',{method:'PUT',body:JSON.stringify({ts,data})});localStorage.setItem('sync_ts',JSON.stringify(ts));dirty=false;setCst('Synced '+new Date().toLocaleTimeString())}
+  await api('/api/state',{method:'PUT',body:JSON.stringify({ts,data})});sessionStorage.setItem('sync_ts',JSON.stringify(ts));dirty=false;setCst('Synced '+new Date().toLocaleTimeString())}
  catch(e){setCst(e.message)}}
 async function syncPull(){
  try{const r=await api('/api/state');
   if(!r.ts){await syncPush();return}
-  if(r.ts>LS('sync_ts',0)){localStorage.setItem('sync_ts',JSON.stringify(r.ts));syApply(r);return}
+  if(r.ts>LS('sync_ts',0)){sessionStorage.setItem('sync_ts',JSON.stringify(r.ts));syApply(r);return}
   setCst('Up to date '+new Date().toLocaleTimeString())}
  catch(e){setCst(e.message)}}
 /* ---- realtime relay sync ---- */
@@ -204,8 +204,8 @@ function syFields(){
 }
 function syApply(m){
   const oldSym=S.sym,oldTf=S.tf;
-  SYNCK.forEach(k=>{if(k in m.data)localStorage.setItem(k,JSON.stringify(m.data[k]))});
-  syTs=m.ts;localStorage.setItem('syts',JSON.stringify(syTs));
+  SYNCK.forEach(k=>{if(k in m.data)sessionStorage.setItem(k,JSON.stringify(m.data[k]))});
+  syTs=m.ts;sessionStorage.setItem('syts',JSON.stringify(syTs));
   if('hist' in m.data){HS=LS('hist',[]);HS.forEach(h=>{if(!h.sz)h.sz=10000;if(!h.rr)h.rr=2});renderHist()}
   if('paper' in m.data){P=LS('paper',{open:[],closed:[]});renderPos()}
   if('wallets' in m.data){WL=LS('wallets',[]);renderWL()}
