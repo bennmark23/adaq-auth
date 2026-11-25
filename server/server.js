@@ -371,10 +371,15 @@ app.post('/api/messages', auth, requireRole('admin', 'subadmin'), upload.single(
   const info = db.prepare('INSERT INTO messages (from_user,to_user,content,image_path,encrypted_mode,expires_at,created_at) VALUES (?,?,?,?,?,?,?)').run(req.user.id, toUser, content || '', imagePath, encrypted_mode || null, expiresAt, Date.now());
   const msg = db.prepare('SELECT m.*,u.username as from_name FROM messages m LEFT JOIN users u ON u.id=m.from_user WHERE m.id=?').get(info.lastInsertRowid);
   broadcast('message', msg, (uid) => {
-    if (req.user.role === 'admin') return true;
-    // subadmin messages go to users + other subadmins? send to target or all users
-    if (toUser) return uid === toUser;
-    return true;
+    const recipient = toUser ? toUser : null;
+    if (req.user.role === 'admin') {
+      // Admin: targeted message -> only that user; admin broadcast -> everyone
+      if (recipient) return uid === recipient;
+      return true;
+    }
+    // Regular user: only their chosen recipient (or themselves if none)
+    if (recipient) return uid === recipient;
+    return uid === req.user.id;
   });
   res.json({ message: msg });
 });
@@ -462,7 +467,7 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v8' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v9' }));
 
 // Register bot API (must be before the catch-all)
 const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);

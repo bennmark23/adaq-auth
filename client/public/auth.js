@@ -118,6 +118,8 @@ async function doLogin() {
   const t = document.getElementById('loginTotp').value.trim();
   const msg = document.getElementById('loginMsg');
   msg.textContent = '';
+  // Always start from a clean slate so a failed attempt can never leave a stale session
+  TOKEN = ''; sessionStorage.removeItem('adaq_token');
   try {
     const r = await api('/auth/login', { method: 'POST', body: { username: u, password: p, totp: t, adminMode: ADMIN_MODE } });
     if (r.mustChangePassword) { TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user; hideLogin(); showChangePassword(); return; }
@@ -126,7 +128,7 @@ async function doLogin() {
     TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
     if (!ADMIN_MODE) rememberUser(r.user);
     hideLogin(); await afterLogin();
-  } catch (e) { msg.textContent = e.message; }
+  } catch (e) { TOKEN = ''; sessionStorage.removeItem('adaq_token'); USER = null; msg.textContent = e.message; }
 }
 
 function showChangePassword() {
