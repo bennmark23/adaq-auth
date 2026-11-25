@@ -486,7 +486,7 @@ if (!fs.existsSync(path.join(CLIENT_DIR, 'index.html'))) {
     // Allow invite.html and recover.html
     if (req.path === '/invite.html' || req.path === '/recover.html' || req.path === '/admins') {
       const file = path.join(CLIENT_DIR, req.path.slice(1));
-      if (fs.existsSync(file)) return res.sendFile(file);
+      if (fs.existsSync(file)) { res.set('Cache-Control', 'no-store, no-cache, must-revalidate'); return res.sendFile(file); }
     }
     // Everything else = 404
     return res.status(404).send('Not Found');
