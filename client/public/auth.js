@@ -916,10 +916,40 @@ async function loadChatMessages(id) {
     const conv = ((await api('/chat/conversations')).conversations || []).find(c => c.id === Number(id)) || {};
     const canReply = conv.canReply !== false;
     pane.innerHTML = `<div class="msg-head"><b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small></div>
-      <div class="msg-scroll" id="msgScroll">${msgs.length ? msgs.map(m => `<div class="bubble ${m.sender_id === (USER ? USER.id : 0) ? 'mine' : ''}">${escapeHtml(m.body || '')}<small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`).join('') : '<div class="msg-day">No messages yet</div>'}</div>
+      <div class="msg-scroll" id="msgScroll">${msgs.length ? msgs.map(m => {
+        const mine = m.sender_id === (USER ? USER.id : 0);
+        const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
+        const reacts = (m.reactions || []).map(r => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(r.emoji)} ${r.n}</button>`).join('');
+        return `<div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">
+          ${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}
+          ${body}${m.edited_at ? '<small>Edited</small>' : ''}
+          ${m.deleted_for_everyone ? '' : `<div class="bubble-actions">
+            <button onclick="chatAction(${m.id},'react')" title="React">😊</button>
+            <button onclick="chatAction(${m.id},'reply')" title="Reply">↩</button>
+            <button onclick="chatAction(${m.id},'copy')" title="Copy">⧉</button>
+            ${mine ? `<button onclick="chatAction(${m.id},'edit')" title="Edit">✎</button><button onclick="chatAction(${m.id},'unsend')" title="Unsend">✕</button>` : ''}
+            <button onclick="chatAction(${m.id},'delete')" title="Delete for me">🗑</button>
+            <button onclick="chatAction(${m.id},'forward')" title="Forward">➤</button>
+          </div>`}${reacts ? `<div class="reacts">${reacts}</div>` : ''}
+          <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+        </div>`;
+      }).join('') : '<div class="msg-day">No messages yet</div>'}</div>
       ${canReply ? `<div class="msg-compose"><input id="chatInput" placeholder="Type a message" onkeydown="if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
+}
+let REPLY_ID = null;
+async function chatAction(id, action) {
+  try {
+    if (action === 'react') { await api('/chat/messages/' + id + '/reactions', { method: 'POST', body: { emoji: '👍' } }); }
+    else if (action === 'reply') { REPLY_ID = id; const i = document.getElementById('chatInput'); if (i) { i.placeholder = 'Replying...'; i.focus(); } return; }
+    else if (action === 'copy') { const m = [...document.querySelectorAll('.bubble')].find(b => Number(b.dataset.id) === Number(id)); await navigator.clipboard.writeText(m ? m.innerText : ''); return; }
+    else if (action === 'edit') { const body = prompt('Edit message:'); if (body === null) return; await api('/chat/messages/' + id + '/edit', { method: 'PATCH', body: { body } }); }
+    else if (action === 'unsend') { if (!confirm('Remove this message for everyone?')) return; await api('/chat/messages/' + id + '?mode=everyone', { method: 'DELETE' }); }
+    else if (action === 'delete') { await api('/chat/messages/' + id, { method: 'DELETE' }); }
+    else if (action === 'forward') { const to = prompt('Forward to conversation ID:'); if (!to) return; const msgs = (await api('/chat/conversations/' + CHAT_ID + '/messages')).messages || []; const m = msgs.find(x => x.id === Number(id)); if (m) await api('/chat/conversations/' + to + '/messages', { method: 'POST', body: { body: m.body } }); return; }
+    if (CHAT_ID) await loadChatMessages(CHAT_ID);
+  } catch (e) { alert(e.message); }
 }
 async function sendChatMessage() {
   if (!CHAT_ID) return;
@@ -928,14 +958,16 @@ async function sendChatMessage() {
   if (!body) return;
   if (input) input.value = '';
   try {
-    const r = await api('/chat/conversations/' + CHAT_ID + '/messages', { method: 'POST', body: { body } });
+    const payload = { body };
+    if (REPLY_ID) { payload.reply_to = REPLY_ID; REPLY_ID = null; if (input) input.placeholder = 'Type a message'; }
+    const r = await api('/chat/conversations/' + CHAT_ID + '/messages', { method: 'POST', body: payload });
     if (r.message) { const sc = document.getElementById('msgScroll'); if (sc) sc.insertAdjacentHTML('beforeend', `<div class="bubble mine">${escapeHtml(r.message.body || '')}<small>${new Date(r.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`); if (sc) sc.scrollTop = sc.scrollHeight; }
     loadConversations();
   } catch (e) { if (input) input.value = body; alert(e.message); }
 }
 window.addEventListener('adaq:chat', e => {
   const t = e.detail;
-  if (t && t.type === 'chat_message' && t.data && t.data.conversation_id === CHAT_ID) loadChatMessages(CHAT_ID);
+  if (t && (t.type === 'chat_message' || t.type === 'chat_updated') && t.data && t.data.conversation_id === CHAT_ID) loadChatMessages(CHAT_ID);
   refreshUnread();
 });
 

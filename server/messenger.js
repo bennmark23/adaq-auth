@@ -62,6 +62,12 @@ CREATE TABLE IF NOT EXISTS chat_attachments (
   duration REAL,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS chat_message_deletes (
+  message_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (message_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS chat_blocks (
   blocker_id INTEGER NOT NULL,
   blocked_id INTEGER NOT NULL,
@@ -184,10 +190,15 @@ function registerRoutes(app, db, auth, broadcast) {
     const before = Number(req.query.before || 0);
     const rows = before
       ? db.prepare('SELECT * FROM chat_messages WHERE conversation_id=? AND id<? ORDER BY created_at DESC LIMIT 50').all(id, before)
-      : db.prepare('SELECT * FROM chat_messages WHERE conversation_id=? AND deleted_for_everyone=0 ORDER BY created_at DESC LIMIT 50').all(id);
+      : db.prepare('SELECT * FROM chat_messages WHERE conversation_id=? ORDER BY created_at DESC LIMIT 50').all(id);
+    const out = rows.map(m => {
+      if (db.prepare('SELECT 1 FROM chat_message_deletes WHERE message_id=? AND user_id=?').get(m.id, req.user.id)) return null;
+      const reactions = db.prepare('SELECT emoji,COUNT(*) AS n FROM chat_reactions WHERE message_id=? GROUP BY emoji').all(m.id).map(r => ({ emoji: r.emoji, n: r.n }));
+      return { ...m, reactions };
+    }).filter(Boolean);
     db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
     db.prepare('INSERT OR REPLACE INTO chat_reads (message_id,user_id,read_at) SELECT id,?,? FROM chat_messages WHERE conversation_id=?').run(req.user.id, Date.now(), id);
-    res.json({ messages: rows.reverse() });
+    res.json({ messages: out.reverse() });
   });
   app.post('/api/chat/conversations/:id/messages', ...A, (req, res) => {
     const id = Number(req.params.id);
@@ -213,6 +224,45 @@ function registerRoutes(app, db, auth, broadcast) {
     const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(info.lastInsertRowid));
     emitChat(broadcast, db, id, 'chat_message', msg);
     res.json({ message: msg });
+  });
+  app.patch('/api/chat/messages/:id/edit', ...A, (req, res) => {
+    const m = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(req.params.id));
+    if (!m) return res.status(404).json({ error: 'Not found' });
+    assertConversationAccess(db, req.user.id, m.conversation_id);
+    if (m.sender_id !== req.user.id) return res.status(403).json({ error: 'Only the sender can edit' });
+    if (m.deleted_for_everyone) return res.status(409).json({ error: 'Message removed' });
+    const body = String((req.body && req.body.body) || '').trim().slice(0, 4000);
+    if (!body) return res.status(400).json({ error: 'Empty message' });
+    db.prepare('UPDATE chat_messages SET body=?,edited_at=? WHERE id=?').run(body, Date.now(), m.id);
+    const out = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(m.id);
+    emitChat(broadcast, db, m.conversation_id, 'chat_updated', out);
+    res.json({ message: out });
+  });
+  app.delete('/api/chat/messages/:id', ...A, (req, res) => {
+    const m = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(req.params.id));
+    if (!m) return res.status(404).json({ error: 'Not found' });
+    assertConversationAccess(db, req.user.id, m.conversation_id);
+    const mode = String(req.query.mode || 'me');
+    if (mode === 'everyone') {
+      if (m.sender_id !== req.user.id) return res.status(403).json({ error: 'Only the sender can remove for everyone' });
+      db.prepare('UPDATE chat_messages SET deleted_for_everyone=1,body=? WHERE id=?').run('', m.id);
+      emitChat(broadcast, db, m.conversation_id, 'chat_updated', { id: m.id, deleted_for_everyone: 1 });
+    } else {
+      db.prepare('INSERT OR REPLACE INTO chat_message_deletes (message_id,user_id,created_at) VALUES (?,?,?)').run(m.id, req.user.id, Date.now());
+    }
+    res.json({ ok: true });
+  });
+  app.post('/api/chat/messages/:id/reactions', ...A, (req, res) => {
+    const m = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(req.params.id));
+    if (!m) return res.status(404).json({ error: 'Not found' });
+    assertConversationAccess(db, req.user.id, m.conversation_id);
+    const emoji = String((req.body && req.body.emoji) || '👍').slice(0, 16);
+    const exists = db.prepare('SELECT id FROM chat_reactions WHERE message_id=? AND user_id=? AND emoji=?').get(m.id, req.user.id, emoji);
+    if (exists) db.prepare('DELETE FROM chat_reactions WHERE id=?').run(exists.id);
+    else db.prepare('INSERT INTO chat_reactions (message_id,user_id,emoji,created_at) VALUES (?,?,?,?)').run(m.id, req.user.id, emoji, Date.now());
+    const counts = db.prepare('SELECT emoji,COUNT(*) AS n FROM chat_reactions WHERE message_id=? GROUP BY emoji').all(m.id).map(r => ({ emoji: r.emoji, n: r.n }));
+    emitChat(broadcast, db, m.conversation_id, 'chat_updated', { id: m.id, reactions: counts });
+    res.json({ reactions: counts });
   });
   app.post('/api/chat/conversations/:id/typing', ...A, (req, res) => {
     const id = Number(req.params.id);
