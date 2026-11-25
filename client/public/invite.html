@@ -3,13 +3,22 @@
 <link rel="stylesheet" href="auth.css"></head><body>
 <div id="authOverlay" style="display:flex">
   <div class="card">
-    <h2>Join ADAQ</h2>
-    <small>Click "Register" to create your account.</small>
-    <input id="regUser" placeholder="Username">
-    <input id="regPass" type="password" placeholder="Password">
+    <h2 style="color:#e6e9ef">Join ADAQ</h2>
+    <small style="color:#e6e9ef">Click "Register" to create your account.</small>
+    <input id="regUser" placeholder="Username" style="background:#fff;color:#000">
+    <input id="regPass" type="password" placeholder="Password" style="background:#fff;color:#000">
     <button onclick="doRegister()">Register</button>
     <div id="regMsg" style="color:#ea3943;margin-top:8px"></div>
   </div>
+  <div id="enrollModal" class="modal hidden"><div class="sheet" style="background:#0b0e14">
+    <h3>Set up Authenticator</h3>
+    <p>Scan this QR with Google Authenticator, or copy the key.</p>
+    <img id="enrollQr" style="width:200px;height:200px;background:#fff;border-radius:8px">
+    <div id="enrollSecret" style="word-break:break-all;font-family:monospace;margin:8px 0;color:#e6e9ef;background:#141a24;padding:8px;border-radius:8px"></div>
+    <input id="enrollCode" placeholder="6-digit code" style="background:#fff;color:#000">
+    <button onclick="doEnroll()">Verify & Enable</button>
+    <div id="enrollMsg" style="color:#ea3943;margin-top:8px"></div>
+  </div></div>
 </div>
 <script>
 const API = (location.origin) + '/api';
@@ -18,12 +27,36 @@ async function doRegister() {
   const u = document.getElementById('regUser').value.trim();
   const p = document.getElementById('regPass').value;
   const msg = document.getElementById('regMsg');
+  msg.textContent = '';
   try {
     const r = await fetch(API + '/invite/' + token + '/register', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({username: u, password: p}) });
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || 'Failed');
-    // Login and go to app
     sessionStorage.setItem('adaq_token', j.token);
+    sessionStorage.setItem('adaq_registered_pass', p);
+    await startTotpEnrollment();
+  } catch (e) { msg.textContent = e.message; }
+}
+async function startTotpEnrollment() {
+  try {
+    const r = await fetch(API + '/auth/change-password', { method: 'POST', headers: {'content-type':'application/json','authorization':'Bearer '+sessionStorage.getItem('adaq_token')}, body: JSON.stringify({oldPassword: sessionStorage.getItem('adaq_registered_pass') || '', newPassword: sessionStorage.getItem('adaq_registered_pass') || ''}) });
+    const j = await r.json();
+    if (r.ok && j.totpSecret) {
+      document.getElementById('enrollQr').src = j.qr;
+      document.getElementById('enrollSecret').textContent = j.totpSecret;
+      document.getElementById('enrollModal').classList.remove('hidden');
+    }
+  } catch(e) {}
+}
+async function doEnroll() {
+  const code = document.getElementById('enrollCode').value.trim();
+  const msg = document.getElementById('enrollMsg');
+  msg.textContent = '';
+  try {
+    const r = await fetch(API + '/auth/enroll-totp', { method: 'POST', headers: {'content-type':'application/json','authorization':'Bearer '+sessionStorage.getItem('adaq_token')}, body: JSON.stringify({code}) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || 'Failed');
+    document.getElementById('enrollModal').classList.add('hidden');
     location.href = '/';
   } catch (e) { msg.textContent = e.message; }
 }
