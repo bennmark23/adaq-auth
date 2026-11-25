@@ -467,7 +467,37 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v9' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v11' }));
+
+// ---- Market / news / external API proxy (browser-side CORS-safe) ----
+const MARKET_PROXIES = [
+  { prefix: 'binance', base: 'https://data-api.binance.vision' },
+  { prefix: 'coingecko', base: 'https://api.coingecko.com' },
+  { prefix: 'cryptocompare', base: 'https://min-api.cryptocompare.com' },
+  { prefix: 'finnhub', base: 'https://finnhub.io' },
+  { prefix: 'dexscreener', base: 'https://api.dexscreener.com' },
+  { prefix: 'rugcheck', base: 'https://api.rugcheck.xyz' },
+  { prefix: 'solana', base: 'https://api.mainnet-beta.solana.com' },
+  { prefix: 'geckoterminal', base: 'https://api.geckoterminal.com' },
+  { prefix: 'gopluslabs', base: 'https://api.gopluslabs.io' },
+  { prefix: 'rss2json', base: 'https://api.rss2json.com' },
+];
+app.use('/api/market', async (req, res) => {
+  try {
+    const rel = req.path.replace(/^\/+/, '');
+    const prox = MARKET_PROXIES.filter(p => rel === p.prefix || rel.startsWith(p.prefix + '/')).sort((a, b) => b.prefix.length - a.prefix.length)[0];
+    if (!prox) return res.status(404).json({ error: 'Not found' });
+    const upstream = prox.base + rel.slice(prox.prefix.length) + (req.query ? '?' + new URLSearchParams(req.query).toString() : '');
+    const init = { method: req.method, headers: { 'content-type': 'application/json', accept: '*/*' } };
+    if (req.method !== 'GET' && req.method !== 'HEAD') init.body = JSON.stringify(req.body || {});
+    const r = await fetch(upstream, init);
+    const text = await r.text();
+    res.status(r.status);
+    const ct = r.headers.get('content-type');
+    if (ct) res.set('content-type', ct);
+    res.send(text);
+  } catch (e) { res.status(502).json({ error: 'Proxy error' }); }
+});
 
 // Register bot API (must be before the catch-all)
 const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);
