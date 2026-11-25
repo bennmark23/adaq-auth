@@ -355,12 +355,13 @@ function notify(s){
 
 function banner(){banner0();if(NW.some(n=>n.imp&&Date.now()-n.t<18e5))$('#banner').insertAdjacentHTML('beforeend','<div class="bl"><span>Important news in the last 30 minutes. Trade with caution.</span></div>')}
 function banner0(){
- const s=S.sig,b=$('#banner');
+ const s=S.sig||(S.tab==='admin'?S.stickySig:null),b=$('#banner');
  if(!s){b.className='ban none';b.innerHTML='<b>Do not enter yet! No good entry right now!</b>';return}
  const L=s.side>0;b.className='ban '+(L?'long':'short');
  b.innerHTML=`<b>${L?'Long Entry':'Short Entry'}</b> <span>${esc(lab(S.sym))}  ${S.tf}</span><div class="bl"><span>Entry ${fmt(s.en)}</span><span>Stop ${fmt(s.sl)}</span><span>TP ${fmt(s.tp)}</span><span>Q ${s.q||'?'}</span></div>`;
 }
 function hdr(){
+ if(S.sig)S.stickySig=S.sig;
  $('#px').textContent=fmt(S.px);banner();$('#tpx').textContent=fmt(S.px);$('#tsym').textContent=S.sym;
  const s=S.sig,p=$('#plan');
  if(!s){p.innerHTML='<b>No setup</b><br><small>Waiting for trend, momentum and volume to line up on '+S.tf+'. Try another timeframe or coin.</small>';return}
