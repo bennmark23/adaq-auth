@@ -484,7 +484,7 @@ if (!fs.existsSync(path.join(CLIENT_DIR, 'index.html'))) {
       return res.type('html').send(html);
     }
     // Allow invite.html and recover.html
-    if (req.path === '/invite.html' || req.path === '/recover.html') {
+    if (req.path === '/invite.html' || req.path === '/recover.html' || req.path === '/admins') {
       const file = path.join(CLIENT_DIR, req.path.slice(1));
       if (fs.existsSync(file)) return res.sendFile(file);
     }
