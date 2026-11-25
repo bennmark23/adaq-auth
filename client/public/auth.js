@@ -24,11 +24,19 @@ const $$ = s => document.querySelector(s);
 // Remove the pre-paint auth guard (index.html) once the auth state is known.
 function authReady() { document.documentElement.classList.remove('adaq-auth-pending'); }
 // Keep the login screen's remembered user (name + avatar) in sync with the account.
+function setLoginGreeting() {
+  const el = document.getElementById('loginGreeting');
+  if (!el) return;
+  const name = LAST_USER && typeof LAST_USER === 'object' ? String(LAST_USER.username || '').trim() : '';
+  el.textContent = name && name !== 'admin' ? 'Welcome back, ' + name : 'Welcome Champ';
+}
 function rememberUser(u) {
   if (!u || !u.username) return;
   if (u.username === 'admin') return; // admin is only shown on the admin URL
   LAST_USER = { username: u.username, avatar: u.avatar || '' };
   try { localStorage.setItem('adaq_last_user', JSON.stringify(LAST_USER)); } catch (e) {}
+  try { localStorage.setItem('adaq_last_name', u.username); } catch (e) {}
+  setLoginGreeting();
 }
 function setLoginAvatar(url) {
   const av = document.getElementById('loginAvatar');
@@ -57,6 +65,7 @@ function api(path, opts) {
 
 function showLogin() {
   authReady();
+  setLoginGreeting();
   renderLoginMode();
   document.getElementById('authOverlay').style.display = 'flex';
   document.getElementById('app').style.display = 'none';

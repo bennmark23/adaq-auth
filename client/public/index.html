@@ -172,7 +172,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
  <div class="card"><b>News alerts</b>
   <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="na" style="width:auto"> Important news: sound and notification</label>
   <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="nn" style="width:auto"> Normal news: silent notification</label></div>
- <div class="card"><b>Signal target</b><br><small>Take profit as a multiple of risk. 1R wins most often. Applies to new signals.</small><select id="rrs" style="width:100%;margin-top:6px"><option value="1">1R (higher win rate)</option><option value="1.5">1.5R</option><option value="2">2R (bigger wins)</option></select></div>
+ <div class="card"><b>Signal target</b><br><small>Take profit as a multiple of risk. 1R wins most often. Applies to new signals.</small><select id="rrs" style="width:100%;margin-top:6px"><option value="1">1R (higher win rate)</option><option value="1.5">1.5R</option><option value="2">2R (bigger wins)</option></select><button id="rrApply" class="btn btn-primary" style="width:100%;margin-top:8px" disabled onclick="applySignalTarget()">Apply</button></div>
  <div class="card"><b>With Entry alerts</b>
   <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="wa" style="width:auto"> Alert me when a new coin gets an entry</label></div>
  <div class="card"><b>Alerts</b><br><small>Sound, vibration and notification fire while ADAQ is open.</small>
@@ -474,7 +474,7 @@ async function memes(){
  const pl=await platforms(ok.map(c=>c.id));
  el.querySelectorAll('.ca').forEach(n=>n.innerHTML=caH(pl[n.dataset.id]||{}));
 }
-function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),4500)}
+function toast(m,ms){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),ms||4500)}
 function hvBar(){const el=$('#hv'),h=S.hv;el.innerHTML=h?`<div class="card" style="margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px"><small>Viewing past ${h.side>0?'long':'short'} signal  ${esc(lab(h.sym))} ${esc(h.tf)}  ${h.out==='open'?'still open':h.out==='tp'?'take profit hit':'stop loss hit'}${Date.now()-h.t>864e5?'  lines hidden after 24h':''}</small><button id="hvx">Hide</button></div>`:''}
 function focusHv(){const h=S.hv;if(!h)return;const i=S.c.findIndex(k=>k.t===h.t);if(i<0){toast('That signal is older than the loaded candles.');return}const N=vis();S.pan=Math.max(0,S.c.length-Math.min(S.c.length,i+Math.floor(N*.6)));clampPan();draw()}
 function openHist(id){const h=HS.find(x=>x.id===id);if(!h)return;S.bannerLocked=false;S.hv=h;if(S.pro)proSet(false);window.scrollTo({top:0,behavior:'smooth'});
@@ -625,7 +625,7 @@ function alphaSheet(i){
  const M=n=>n==null?'?':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}),pc=v=>v==null?'?':`<span class="${v>=0?'g':'rd'}">${v>=0?'+':''}${Math.round(v*10)/10}%</span>`;
  const lk=[...(inf.websites||[]).map(w=>[w.label||'Website',w.url]),...(inf.socials||[]).map(z=>[z.type,z.url])].filter(l=>/^https?:/.test(l[1]));
  d.hidden=false;
- d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px">${inf.imageUrl?`<img src="${esc(inf.imageUrl)}" width="40" height="40" style="border-radius:50%" alt="">`:''}<div><b style="font-size:17px">${esc(p.baseToken.name)}</b><br><small>${esc(p.baseToken.symbol)}  ${esc(p.chainId)}  ${x.age<24?Math.round(x.age)+'h':Math.round(x.age/24)+'d'} old</small></div></div><button id="dx">Close</button></div>
+ d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px">${inf.imageUrl?`<img src="${esc(inf.imageUrl)}" width="40" height="40" style="border-radius:50%" alt="">`:''}<div><b style="font-size:17px">${esc(p.baseToken.name)}</b><br><small>${esc(p.baseToken.symbol)}  ${esc(p.chainId)}  ${x.age<24?Math.round(x.age)+'h':Math.round(x.age/24)+'d'} old</small></div></div><button id="dx" class="icon-btn" aria-label="Close">×</button></div>
  <div style="font-size:24px;margin:6px 0">$${fmt(+p.priceUsd)} ${pc(x.c24)}</div>
  <div class="grid"><div><small>Safety score</small><div class="g" style="font-size:18px">${x.score}/100</div></div><div><small>Liquidity</small><div>${M(x.liq)}</div></div><div><small>24h volume</small><div>${M(x.v)}</div></div><div><small>Market cap / FDV</small><div>${M(x.fdv)}</div></div><div><small>Change 1h  6h</small><div>${pc(pcg.h1)}  ${pc(pcg.h6)}</div></div><div><small>Buys / sells 24h</small><div>${x.tx.buys} / ${x.tx.sells}</div></div></div>
  <div class="card"><b>Contract scan</b> <small>(${esc(k.src)})</small><div class="g">No danger flags found</div>${k.risks.length?`<small>Notes: ${k.risks.map(r=>esc(r)).join(', ')}</small>`:''}${k.lock!=null?`<br><small>Liquidity locked: ${Math.round(k.lock)}%</small>`:''}${k.holders?`<br><small>Holders: ${esc(k.holders)}</small>`:''}</div>
@@ -777,7 +777,7 @@ async function holdings(w){
 async function showCoin(id){
  const c=CO[id];if(!c)return;const d=$('#dt');d.hidden=false;
  const f=n=>n==null?'?':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:n<1?8:2}),u=n=>n==null?'?':Number(n).toLocaleString(undefined,{maximumFractionDigits:0});
- d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px"><img src="${esc(c.image)}" width="40" height="40" style="border-radius:50%" alt=""><div><b style="font-size:17px">${esc(c.name)}</b><br><small>${esc(c.symbol.toUpperCase())}  Rank #${c.market_cap_rank||'?'}</small></div></div><button id="dx">Close</button></div>
+ d.innerHTML=`<div class="sheet"><div class="row"><div style="display:flex;align-items:center;gap:10px"><img src="${esc(c.image)}" width="40" height="40" style="border-radius:50%" alt=""><div><b style="font-size:17px">${esc(c.name)}</b><br><small>${esc(c.symbol.toUpperCase())}  Rank #${c.market_cap_rank||'?'}</small></div></div><button id="dx" class="icon-btn" aria-label="Close">×</button></div>
  <div style="font-size:24px;margin:6px 0">$${fmt(c.current_price)} <span class="${ch(c)>=0?'g':'rd'}" style="font-size:14px">${ch(c).toFixed(2)}%</span></div>
  <div class="grid"><div><small>Market cap</small><div>${f(c.market_cap)}</div></div><div><small>24h volume</small><div>${f(c.total_volume)}</div></div><div><small>24h high</small><div>${f(c.high_24h)}</div></div><div><small>24h low</small><div>${f(c.low_24h)}</div></div><div><small>All-time high</small><div>${f(c.ath)}</div></div><div><small>From ATH</small><div class="rd">${(c.ath_change_percentage||0).toFixed(1)}%</div></div><div><small>Circulating supply</small><div>${u(c.circulating_supply)}</div></div><div><small>Total supply</small><div>${u(c.total_supply)}</div></div></div>
  <div class="ca" id="dca" style="padding-top:10px"><small>Loading CA?</small></div>
@@ -908,7 +908,8 @@ syInit();
 $('#sya').onclick=()=>{const c=$('#syc').value.trim().replace(/[^A-Za-z0-9_-]/g,'');if(!c){syStat('Enter a sync code');return}SV('sycode',c);SV('sycustom',true);SV('syts',0);syConnect()};
 $('#sycpy').onclick=async()=>{try{await navigator.clipboard.writeText($('#syc').value);syStat('Code copied')}catch(e){syStat('Select and copy the code above')}};
 $('#csz').value=LS('csz',10000);$('#csz').oninput=e=>SV('csz',+e.target.value||0);
-$('#rrs').value=String(LS('rr',1));$('#rrs').onchange=e=>{SV('rr',+e.target.value);load();scanEntries()};
+$('#rrs').value=String(LS('rr',1));$('#rrs').onchange=e=>{const b=document.getElementById('rrApply');if(b)b.disabled=false};
+function applySignalTarget(){const s=document.getElementById('rrs'),b=document.getElementById('rrApply');if(!b||b.disabled)return;SV('rr',+s.value);b.disabled=true;load();scanEntries();toast('Successfully Applied Signal Target',3000)}
 mBar();renderWE();HS.forEach(h=>{if(!h.sz)h.sz=10000;if(!h.rr)h.rr=2});SV('hist',HS);
 setInterval(resolveOpen,6e4);setTimeout(resolveOpen,6000);setInterval(gtPoll,1e4);
 window.addEventListener('resize',draw);
@@ -930,7 +931,7 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
       <div id="loginName" style="font-weight:600"></div>
     </div>
     <h2 style="text-align:center">ADAQ</h2>
-    <small style="color:#8791a3;display:block;text-align:center">Welcome Champ</small>
+    <small id="loginGreeting" style="color:#8791a3;display:block;text-align:center">Welcome Champ</small>
     <input id="loginUser" placeholder="Username">
     <input id="loginPass" type="password" placeholder="Password">
     <input id="loginTotp" placeholder="Whats your favorite snack">
@@ -964,7 +965,7 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
   </div>
 </div></div>
 <div id="enrollModal" class="modal hidden"><div class="sheet">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Set up Authenticator</h3><button onclick="document.getElementById('enrollModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Set up Authenticator</h3><button class="icon-btn" aria-label="Close" onclick="document.getElementById('enrollModal').classList.add('hidden')">×</button></div>
   <p>Scan this QR with Google Authenticator, or copy the key.</p>
   <img id="enrollQr" style="width:200px;height:200px">
   <div id="enrollSecret" style="word-break:break-all;font-family:monospace;margin:8px 0"></div>
