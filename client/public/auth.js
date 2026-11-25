@@ -57,6 +57,7 @@ function api(path, opts) {
 
 function showLogin() {
   authReady();
+  renderLoginMode();
   document.getElementById('authOverlay').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
@@ -67,20 +68,49 @@ function hideLogin() {
 }
 
 // ---- Login ----
-function loginAsRemembered() {
+// Remembered account: username is fixed; only password + authenticator are needed.
+// No remembered account: normal username + password + authenticator form.
+function renderLoginMode() {
+  if (ADMIN_MODE) return;
   const lu = document.getElementById('loginUser');
-  if (LAST_USER && lu) lu.value = LAST_USER.username;
-  // show password + totp, hide remember buttons
-  const rb = document.getElementById('rememberBtns'); if (rb) rb.style.display = 'none';
-  document.getElementById('loginPass').focus();
+  const loginName = document.getElementById('loginName');
+  const box = document.getElementById('loginBox');
+  const mainBtn = document.getElementById('loginBtn');
+  const old = document.getElementById('rememberBtns');
+  if (old) old.remove();
+  if (LAST_USER) {
+    setLoginAvatar(LAST_USER.avatar);
+    if (loginName) loginName.textContent = LAST_USER.username || '';
+    if (lu) { lu.value = LAST_USER.username; lu.readOnly = true; lu.style.opacity = '0.7'; }
+    if (box && mainBtn) {
+      const div = document.createElement('div');
+      div.id = 'rememberBtns';
+      div.style.marginTop = '8px';
+      div.innerHTML = `<button onclick="doLogin()" style="width:100%">Login as ${escapeHtml(LAST_USER.username)}</button>`;
+      box.insertBefore(div, mainBtn);
+    }
+    if (mainBtn) { mainBtn.textContent = 'Login in another account'; mainBtn.onclick = switchAccount; }
+  } else {
+    const av = document.getElementById('loginAvatar');
+    if (av) { av.style.display = 'none'; av.removeAttribute('src'); }
+    if (loginName) loginName.textContent = '';
+    if (lu) { lu.value = ''; lu.readOnly = false; lu.style.opacity = ''; }
+    if (mainBtn) { mainBtn.textContent = 'Login'; mainBtn.onclick = doLogin; }
+  }
 }
-function useAnotherAccount() {
-  LAST_USER = null;
-  localStorage.removeItem('adaq_last_user');
+function switchAccount() {
+  LAST_USER = null; // keep localStorage so the last account is still remembered next visit
+  const lu = document.getElementById('loginUser');
+  if (lu) { lu.value = ''; lu.readOnly = false; lu.style.opacity = ''; }
   const rb = document.getElementById('rememberBtns'); if (rb) rb.remove();
   const av = document.getElementById('loginAvatar'); if (av) { av.style.display = 'none'; av.removeAttribute('src'); }
   const nm = document.getElementById('loginName'); if (nm) nm.textContent = '';
-  document.getElementById('loginUser').style.display = '';
+  const lp = document.getElementById('loginPass'); if (lp) lp.value = '';
+  const lt = document.getElementById('loginTotp'); if (lt) lt.value = '';
+  const lm = document.getElementById('loginMsg'); if (lm) lm.textContent = '';
+  const btn = document.getElementById('loginBtn');
+  if (btn) { btn.textContent = 'Login'; btn.onclick = doLogin; }
+  if (lu) lu.focus();
 }
 async function doLogin() {
   const u = ADMIN_MODE ? 'admin' : document.getElementById('loginUser').value.trim();
@@ -419,32 +449,12 @@ async function init() {
     const loginName = document.getElementById('loginName');
     if (loginName) loginName.textContent = 'Admin';
   }
-  // User mode: remember me
+  // User mode: normal form; remembered account is rendered by showLogin()
   if (!ADMIN_MODE) {
     const lu = document.getElementById('loginUser');
     if (lu) { lu.value = ''; lu.style.display = 'block'; lu.readOnly = false; }
     const lt = document.getElementById('loginTotp');
     if (lt) lt.placeholder = "Whats your favorite snack";
-    const loginAvatar = document.getElementById('loginAvatar');
-    const loginName = document.getElementById('loginName');
-    if (LAST_USER) {
-      setLoginAvatar(LAST_USER.avatar);
-      if (loginName) loginName.textContent = LAST_USER.username || '';
-      // Add "Login as" button
-      const box = document.getElementById('loginBox');
-      if (box && !document.getElementById('rememberBtns')) {
-        const div = document.createElement('div');
-        div.id = 'rememberBtns';
-        div.style.marginTop = '8px';
-        div.innerHTML = `<button onclick="loginAsRemembered()" style="width:100%">Login as ${escapeHtml(LAST_USER.username)}</button>`;
-        const btn = box.querySelector('button[onclick="doLogin()"]');
-        if (btn) box.insertBefore(div, btn);
-      }
-    } else {
-      // No prior login: show "Welcome Champ" only
-      if (loginAvatar) loginAvatar.style.display = 'none';
-      if (loginName) loginName.textContent = '';
-    }
   }
   // If no server URL is set and we're not on web, prompt the user
   if (!LS('cu', '') && !/^https?:/.test(location.protocol)) {
@@ -471,12 +481,6 @@ async function init() {
   }
   const token = getInviteToken();
   if (token) { showRegister(token); return; }
-  // show last user's avatar on login screen (never in admin mode - admin is always fixed)
-  if (!ADMIN_MODE && LAST_USER) {
-    setLoginAvatar(LAST_USER.avatar);
-    const un = document.getElementById('loginUser'); if (un && LAST_USER.username) un.value = LAST_USER.username;
-    const nm = document.getElementById('loginName'); if (nm) nm.textContent = LAST_USER.username || '';
-  }
   if (TOKEN) {
     try { USER = (await api('/auth/me')).user; hideLogin(); await afterLogin(); return; }
     catch (e) { logout(); return; }
