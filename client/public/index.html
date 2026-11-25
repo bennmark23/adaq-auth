@@ -880,12 +880,20 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
   </div>
 </div>
 <div id="announceBar" style="display:none;background:#f5a524;color:#04140d;padding:8px 12px;border-radius:10px;font-weight:600;margin-bottom:8px"></div>
-<div id="cpModal" class="modal hidden"><div class="sheet">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Change Password</h3><button onclick="document.getElementById('cpModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
-  <input id="cpOld" type="password" placeholder="Old password">
-  <input id="cpNew" type="password" placeholder="New password">
-  <button onclick="submitChangePassword()">Change</button>
-  <div id="cpMsg" style="color:#ea3943;margin-top:8px"></div>
+<div id="cpModal" class="modal hidden stack-top"><div class="sheet ui-sheet">
+  <div class="ui-head">
+    <div><h3 style="margin:0">Change Password</h3><small class="muted">Use a strong password you don't use elsewhere</small></div>
+    <button class="icon-btn" aria-label="Close" onclick="closeChangePassword()">×</button>
+  </div>
+  <div class="ui-body">
+    <div class="ui-field"><label for="cpOld">Current password</label><input id="cpOld" type="password" placeholder="Current password" autocomplete="current-password"></div>
+    <div class="ui-field"><label for="cpNew">New password</label><input id="cpNew" type="password" placeholder="New password" autocomplete="new-password"></div>
+    <div id="cpMsg" class="ui-msg"></div>
+  </div>
+  <div class="ui-actions">
+    <button class="btn btn-ghost" onclick="closeChangePassword()">Back to the profile</button>
+    <button class="btn btn-primary" onclick="submitChangePassword()">Change password</button>
+  </div>
 </div></div>
 <div id="enrollModal" class="modal hidden"><div class="sheet">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h3 style="margin:0">Set up Authenticator</h3><button onclick="document.getElementById('enrollModal').classList.add('hidden')" style="background:none;border:0;font-size:20px;cursor:pointer;padding:0 6px">X</button></div>
@@ -916,7 +924,7 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
     <div id="profMsg" class="ui-msg"></div>
   </div>
   <div class="ui-actions">
-    <button class="btn btn-ghost" onclick="document.getElementById('cpModal').classList.remove('hidden')">Change Password</button>
+    <button class="btn btn-ghost" onclick="openChangePassword()">Change Password</button>
     <button class="btn btn-primary" onclick="saveProfile()">Save changes</button>
     <button class="btn btn-danger" onclick="logout()">Log out</button>
   </div>

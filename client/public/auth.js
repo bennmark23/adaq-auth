@@ -131,8 +131,20 @@ async function doLogin() {
   } catch (e) { TOKEN = ''; sessionStorage.removeItem('adaq_token'); USER = null; msg.textContent = e.message; }
 }
 
+function openChangePassword() {
+  const cp = document.getElementById('cpModal');
+  if (cp) cp.classList.remove('hidden');
+}
+function closeChangePassword() {
+  const cp = document.getElementById('cpModal');
+  if (cp) cp.classList.add('hidden');
+  const msg = document.getElementById('cpMsg'); if (msg) { msg.textContent = ''; msg.className = 'ui-msg'; }
+  document.getElementById('profileModal').classList.remove('hidden');
+}
 function showChangePassword() {
-  document.getElementById('cpModal').classList.remove('hidden');
+  const profile = document.getElementById('profileModal');
+  if (profile) profile.classList.add('hidden');
+  openChangePassword();
 }
 async function submitChangePassword() {
   const oldP = document.getElementById('cpOld').value;
@@ -141,6 +153,8 @@ async function submitChangePassword() {
   try {
     const r = await api('/auth/change-password', { method: 'POST', body: { oldPassword: oldP, newPassword: newP } });
     document.getElementById('cpModal').classList.add('hidden');
+    const msg = document.getElementById('cpMsg'); if (msg) { msg.textContent = ''; msg.className = 'ui-msg'; }
+    document.getElementById('profileModal').classList.remove('hidden');
     // show enrollment
     document.getElementById('enrollQr').src = r.qr;
     document.getElementById('enrollSecret').textContent = r.totpSecret;

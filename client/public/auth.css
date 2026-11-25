@@ -4,8 +4,13 @@
 #authOverlay input{width:100%;margin:6px 0;padding:10px;border-radius:8px;border:1px solid #232c3b;background:#0b0e14;color:#e6e9ef}
 #authOverlay button{width:100%;padding:10px;margin-top:8px;border:0;border-radius:8px;background:#16c784;color:#04140d;font-weight:600;cursor:pointer}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:90;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal.stack-top{z-index:95}
 .modal .sheet{background:#0b0e14;border:1px solid #232c3b;border-radius:16px;padding:20px;width:100%;max-width:520px;max-height:85vh;overflow:auto}
 .modal.hidden{display:none}
+/* Consistent breathing room between every label, field and control */
+.modal .sheet input:not([type=checkbox]):not([type=file]),.modal .sheet select,.modal .sheet textarea{margin:0 0 12px;padding:10px 12px}
+.modal .sheet > input:last-of-type{margin-bottom:16px}
+.ui-sheet .ui-actions{margin-top:4px}
 .th-dark{--bg:#0b0e14;--card:#141a24;--bd:#232c3b;--tx:#e6e9ef}
 .th-light{--bg:#f5f7fa;--card:#ffffff;--bd:#d6dbe3;--tx:#1a1f2b}
 .th-blue{--bg:#0a1628;--card:#112240;--bd:#1e3a5f;--tx:#e6f0ff}
@@ -57,11 +62,11 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .icon-btn{border:0;background:none;color:var(--mu);font-size:22px;line-height:1;padding:0 4px;cursor:pointer}
 .icon-btn:hover{color:var(--tx)}
 .ui-body{display:flex;flex-direction:column;gap:12px;min-height:0;overflow:auto}
-.ui-field{display:flex;flex-direction:column;gap:5px}
+.ui-field{display:flex;flex-direction:column;gap:7px;margin-bottom:4px}
 .ui-field label{font-size:12px;font-weight:600;color:var(--tx)}
-.ui-field input,.ui-field select,.ui-field textarea{width:100%;font-size:13px}
+.ui-field input,.ui-field select,.ui-field textarea{width:100%;font-size:13px;margin:0}
 .ui-field textarea{resize:vertical;min-height:64px}
-.ui-check{display:flex;align-items:center;gap:8px;font-size:13px}
+.ui-check{display:flex;align-items:center;gap:10px;font-size:13px;margin:2px 0 4px}
 .section-title{font-size:13px;margin:4px 0 0}
 .ui-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;padding-top:12px;border-top:1px solid var(--bd)}
 .btn{border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;line-height:1.2;transition:opacity .15s}
