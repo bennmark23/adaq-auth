@@ -514,20 +514,42 @@ function switchAdminTab2(t) {
   if (t === 'reports') loadReports();
   if (t === 'meeting') loadMeeting();
 }
+// Bot profile avatar (initials, like a user avatar) and live duty label
+function botAvatar(b) {
+  const initials = String(b.name || 'BOT').replace(/^(mr\.?|mrs\.?|ms\.?)\s*/i, '').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'B';
+  const colors = ['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444','#6366f1','#14b8a6'];
+  let n = 0; for (const ch of String(b.id || b.name || '')) n = (n * 31 + ch.charCodeAt(0)) >>> 0;
+  return `<span class="bot-avatar" style="background:${colors[n % colors.length]}">${escapeHtml(initials)}</span>`;
+}
+function botStatus(b) {
+  const working = !b.paused && (b.status === 'on_duty' || b.status === 'online');
+  return working
+    ? '<span class="bot-on">● On Duty working now</span>'
+    : '<span class="bot-off">● Off Duty now</span>';
+}
 async function loadBots() {
   const el = document.getElementById('botsList');
   if (!el) return;
   try {
     const r = await api('/admin/members?type=bot');
-    el.innerHTML = (r.members || []).map(b => `<div class="msg-item">
-      <span class="${b.status === 'online' || b.status === 'on_duty' ? 'online' : 'offline'}">●</span>
-      <b>${escapeHtml(b.name)}</b> <small>${b.role}</small>
-      <br><small>${escapeHtml(b.description || '')}</small>
-      <br><small>Status: ${b.status}${b.paused ? ' (paused)' : ''}</small>
-      ${USER.role === 'admin' ? `<br><button onclick="toggleBotPause('${b.id}')" style="margin-top:4px">${b.paused ? 'Resume' : 'Pause'}</button>` : ''}
+    el.innerHTML = (r.members || []).map(b => `<div class="msg-item" style="display:flex;gap:10px;align-items:flex-start">
+      ${botAvatar(b)}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>${escapeHtml(b.name)}</b> <small>${escapeHtml(b.role || '')}</small></div>
+        <div style="margin-top:2px">${botStatus(b)}</div>
+        <br><small>${escapeHtml(b.description || '')}</small>
+        ${USER.role === 'admin' ? `<br><button onclick="toggleBotPause('${b.id}')" style="margin-top:4px">${b.paused ? 'Resume' : 'Pause'}</button>` : ''}
+      </div>
     </div>`).join('') || '<small>No bots.</small>';
   } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
 }
+// Keep bot duty status live while the Bots tab is open
+setInterval(() => {
+  if (typeof S !== 'undefined' && S && S.tab === 'admin') {
+    const p = document.getElementById('adminTab2_bots');
+    if (p && p.style.display !== 'none') loadBots();
+  }
+}, 10000);
 async function loadUsers() {
   const el = document.getElementById('usersList');
   if (!el) return;

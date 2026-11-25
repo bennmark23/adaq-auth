@@ -22,3 +22,6 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .tabbar{display:flex;gap:6px;margin:8px 0}
 .tabbar button{flex:1;padding:8px;border:0;background:none;color:var(--mu)}
 .tabbar button.on{background:var(--card);color:var(--tx)}
+.bot-avatar{width:36px;height:36px;flex:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;letter-spacing:.5px}
+.bot-on{color:#16c784;font-weight:600;font-size:12px}
+.bot-off{color:#8791a3;font-weight:600;font-size:12px}
