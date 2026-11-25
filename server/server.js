@@ -15,6 +15,7 @@ const cors = require('cors');
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { registerBotApi } = require('./botapi');
 const { initScheduler } = require('./scheduler');
 
@@ -25,6 +26,44 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 const UPLOADS = path.join(DATA_DIR, 'uploads');
 if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
 const DB_PATH = path.join(DATA_DIR, 'adaq.db');
+
+// ---- Free persistent DB backup on GitHub (Render free tier has ephemeral disk) ----
+// Env: GH_BACKUP_TOKEN (PAT with repo access), GH_BACKUP_REPO (owner/repo),
+//      GH_BACKUP_PATH (default adaq.db), GH_BACKUP_BRANCH (default main).
+const GH_TOKEN = process.env.GH_BACKUP_TOKEN || '';
+const GH_REPO = process.env.GH_BACKUP_REPO || '';
+const GH_PATH = (process.env.GH_BACKUP_PATH || 'adaq.db').replace(/^\/+/, '');
+const GH_BRANCH = process.env.GH_BACKUP_BRANCH || 'main';
+const GH_API = GH_REPO ? 'https://api.github.com/repos/' + GH_REPO + '/contents/' + GH_PATH : '';
+let ghSha = '';
+const ghHeaders = () => ({
+  'Authorization': 'Bearer ' + GH_TOKEN,
+  'Accept': 'application/vnd.github+json',
+  'X-GitHub-Api-Version': '2022-11-28'
+});
+// Restore synchronously BEFORE the DB is opened, so all app code sees the restored data.
+function ghRestore() {
+  if (!GH_API || !GH_TOKEN) return false;
+  const tmp = DB_PATH + '.gh.json';
+  try {
+    const url = GH_API + '?ref=' + encodeURIComponent(GH_BRANCH);
+    execFileSync('curl', ['-fsSL', '--max-time', '20', '-H', 'Authorization: Bearer ' + GH_TOKEN,
+      '-H', 'Accept: application/vnd.github+json', url, '-o', tmp], { stdio: 'ignore', timeout: 25000 });
+    const j = JSON.parse(fs.readFileSync(tmp, 'utf8'));
+    if (j && j.content && j.sha) {
+      fs.writeFileSync(DB_PATH, Buffer.from(String(j.content).replace(/\s+/g, ''), 'base64'));
+      ghSha = j.sha;
+      fs.unlinkSync(tmp);
+      console.log('DB restored from GitHub backup');
+      return true;
+    }
+  } catch (e) {
+    console.log('No GitHub DB backup found; using local DB');
+  }
+  try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
+  return false;
+}
+ghRestore();
 
 const db = new DatabaseSync(DB_PATH);
 db.exec(`
@@ -486,8 +525,39 @@ app.post('/api/activity', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Push a consistent snapshot of the DB to GitHub (free, persistent across deploys)
+async function ghBackup() {
+  if (!GH_API || !GH_TOKEN) return;
+  const tmp = DB_PATH + '.snapshot';
+  try {
+    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+    try { db.exec("VACUUM INTO '" + tmp.replace(/\\/g, '/').replace(/'/g, "''") + "'"); }
+    catch (e) { fs.copyFileSync(DB_PATH, tmp); }
+    const content = fs.readFileSync(tmp).toString('base64');
+    if (!ghSha) {
+      try {
+        const g = await fetch(GH_API + '?ref=' + encodeURIComponent(GH_BRANCH), { headers: ghHeaders() });
+        if (g.ok) { const j = await g.json(); ghSha = j.sha || ''; }
+      } catch (e) {}
+    }
+    const body = { message: 'ADAQ DB backup ' + new Date().toISOString(), content, branch: GH_BRANCH };
+    if (ghSha) body.sha = ghSha;
+    const r = await fetch(GH_API, { method: 'PUT', headers: Object.assign(ghHeaders(), { 'content-type': 'application/json' }), body: JSON.stringify(body) });
+    if (r.ok) {
+      const j = await r.json();
+      if (j && j.content && j.content.sha) ghSha = j.content.sha;
+      console.log('DB backed up to GitHub');
+    } else { console.log('DB backup failed:', r.status, (await r.text()).slice(0, 120)); }
+  } catch (e) { console.log('DB backup failed:', e.message); }
+  try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
+}
+if (GH_API && GH_TOKEN) {
+  setTimeout(() => { ghBackup(); }, 5000);
+  setInterval(() => { ghBackup(); }, 60 * 1000);
+}
+
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v27' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v28' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
