@@ -165,14 +165,14 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 <script>
 const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
-let dirty=false,syncT=0;
+let dirty=false,syncT=0,syApplying=false;
 const CL=()=>({u:String(LS('cu','')||'').replace(/\/+$/,''),t:LS('ct','')});
 const setCst=m=>{const e=document.getElementById('cst');if(e)e.textContent=m};
 async function api(path,opt={}){
  const c=CL();if(!c.u||!c.t)throw new Error('Add the server address and token first.');
  const r=await fetch(c.u+path,Object.assign({},opt,{headers:Object.assign({'content-type':'application/json','x-adaq-token':c.t},opt.headers||{})}));
  if(r.status===401)throw new Error('Wrong token.');if(!r.ok)throw new Error('Server error '+r.status);return r.json()}
-function syncDirty(k){if(!SYNCK.includes(k)||!CL().u)return;dirty=true;clearTimeout(syncT);syncT=setTimeout(syncPush,3000)}
+function syncDirty(k){if(syApplying||!SYNCK.includes(k)||!CL().u)return;dirty=true;clearTimeout(syncT);syncT=setTimeout(syncPush,3000)}
 async function syncPush(){
  try{const data={};SYNCK.forEach(k=>{const v=LS(k,undefined);if(v!==undefined)data[k]=v});const ts=Date.now();
   await api('/api/state',{method:'PUT',body:JSON.stringify({ts,data})});sessionStorage.setItem('sync_ts',JSON.stringify(ts));dirty=false;setCst('Synced '+new Date().toLocaleTimeString())}
@@ -195,7 +195,7 @@ function syPub(){
   syClient.publish(syRoom(),JSON.stringify({ts,data,from:syClient.options.clientId}),{retain:true,qos:1});
   syStat('Synced '+new Date().toLocaleTimeString());
 }
-function syChanged(k){if(!SYNCK.includes(k)||!syRoom())return;clearTimeout(syTimer);syTimer=setTimeout(syPub,600)}
+function syChanged(k){if(syApplying||!SYNCK.includes(k)||!syRoom())return;clearTimeout(syTimer);syTimer=setTimeout(syPub,600)}
 function syFields(){
   const map={fh:'#fh',rpc:'#rpcu',csz:'#csz'};
   Object.keys(map).forEach(k=>{const el=$(map[k]);if(el)el.value=LS(k,el.value)});
@@ -204,6 +204,7 @@ function syFields(){
 }
 function syApply(m){
   const oldSym=S.sym,oldTf=S.tf;
+  syApplying=true; // do not re-publish changes that came from sync (prevents a sync loop)
   SYNCK.forEach(k=>{if(k in m.data)sessionStorage.setItem(k,JSON.stringify(m.data[k]))});
   syTs=m.ts;sessionStorage.setItem('syts',JSON.stringify(syTs));
   if('hist' in m.data){HS=LS('hist',[]);HS.forEach(h=>{if(!h.sz)h.sz=10000;if(!h.rr)h.rr=2});renderHist()}
@@ -212,12 +213,14 @@ function syApply(m){
   if('sym' in m.data)S.sym=LS('sym',S.sym);
   if('tf' in m.data)S.tf=LS('tf',S.tf);
   syFields();
+  let needLoad=false;
   if('sym' in m.data||'tf' in m.data){
     if(!SYMS2.includes(S.sym))SYMS2.unshift(S.sym);
     fillSyms();tfs();$('#tf2').value=S.tf;
-    if(S.sym!==oldSym||S.tf!==oldTf)load();
+    if(S.sym!==oldSym||S.tf!==oldTf)needLoad=true;
   }
   syStat('Updated '+new Date().toLocaleTimeString());
+  if(needLoad)load().finally(()=>{syApplying=false});else syApplying=false;
 }
 function syOnMessage(t,buf){
   let m;try{m=JSON.parse(buf.toString())}catch(e){return}
