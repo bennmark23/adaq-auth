@@ -500,6 +500,8 @@ window.addEventListener('pagehide', () => { /* optional: logout(); */ });
 
 // ---- Admin's Features ----
 function switchAdminTab2(t) {
+  const va = document.getElementById('v-admin');
+  if (va) va.hidden = false; // the section is hidden by default in markup; reveal it when opening admin features
   ['bots','users','reports','meeting'].forEach(x => {
     const el = document.getElementById('adminTab2_' + x);
     if (el) el.style.display = x === t ? 'block' : 'none';
