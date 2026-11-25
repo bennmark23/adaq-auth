@@ -16,6 +16,24 @@ try { LAST_USER = JSON.parse(localStorage.getItem('adaq_last_user') || 'null'); 
 let USER = null;
 const $$ = s => document.querySelector(s);
 
+// Remove the pre-paint auth guard (index.html) once the auth state is known.
+function authReady() { document.documentElement.classList.remove('adaq-auth-pending'); }
+// Keep the login screen's remembered user (name + avatar) in sync with the account.
+function rememberUser(u) {
+  if (!u || !u.username) return;
+  LAST_USER = { username: u.username, avatar: u.avatar || '' };
+  try { localStorage.setItem('adaq_last_user', JSON.stringify(LAST_USER)); } catch (e) {}
+}
+function setLoginAvatar(url) {
+  const av = document.getElementById('loginAvatar');
+  if (!av) return;
+  av.style.display = 'block';
+  av.onerror = function () { av.onerror = null; av.src = 'icon-192.png'; };
+  av.src = url
+    ? (/^(https?:|data:|blob:)/.test(url) ? url : getServerUrl() + url)
+    : 'icon-192.png';
+}
+
 function api(path, opts) {
   opts = opts || {};
   opts.headers = Object.assign({ 'content-type': 'application/json' }, opts.headers || {});
@@ -32,10 +50,12 @@ function api(path, opts) {
 }
 
 function showLogin() {
+  authReady();
   document.getElementById('authOverlay').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
 }
 function hideLogin() {
+  authReady();
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('app').style.display = '';
 }
@@ -52,7 +72,7 @@ function useAnotherAccount() {
   LAST_USER = null;
   localStorage.removeItem('adaq_last_user');
   const rb = document.getElementById('rememberBtns'); if (rb) rb.remove();
-  const av = document.getElementById('loginAvatar'); if (av) av.src = '';
+  const av = document.getElementById('loginAvatar'); if (av) { av.style.display = 'none'; av.removeAttribute('src'); }
   const nm = document.getElementById('loginName'); if (nm) nm.textContent = '';
   document.getElementById('loginUser').style.display = '';
 }
@@ -68,7 +88,7 @@ async function doLogin() {
     if (r.needsTotpEnroll) { TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user; hideLogin(); showEnroll(r); return; }
     if (r.totpRequired) { msg.textContent = 'TOTP code required'; return; }
     TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
-    localStorage.setItem('adaq_last_user', JSON.stringify({ username: r.user.username, avatar: r.user.avatar }));
+    rememberUser(r.user);
     hideLogin(); await afterLogin();
   } catch (e) { msg.textContent = e.message; }
 }
@@ -105,6 +125,7 @@ function getInviteToken() {
   return m ? decodeURIComponent(m[1]) : null;
 }
 async function showRegister(token) {
+  authReady();
   document.getElementById('authOverlay').style.display = 'flex';
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('registerBox').style.display = 'block';
@@ -145,7 +166,9 @@ async function startTotpEnrollment() {
 
 // ---- After login ----
 async function afterLogin() {
+  authReady();
   try { USER = (await api('/auth/me')).user; } catch (e) { logout(); return; }
+  rememberUser(USER);
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('app').style.display = '';
   applyTheme(USER.theme);
@@ -291,6 +314,7 @@ async function changeUsername() {
   try {
     const r = await api('/profile/username', { method: 'POST', body: { username: u } });
     TOKEN = r.token; sessionStorage.setItem('adaq_token', TOKEN); USER = r.user;
+    rememberUser(USER);
     document.getElementById('profileName').textContent = USER.username;
     alert('Username changed');
   } catch (e) { alert(e.message); }
@@ -301,7 +325,7 @@ async function uploadAvatar() {
   const fd = new FormData(); fd.append('file', f);
   try {
     const r = await api('/profile/avatar', { method: 'POST', body: fd });
-    if (USER) USER.avatar = r.avatar;
+    if (USER) { USER.avatar = r.avatar; rememberUser(USER); }
     const img = document.getElementById('profAvatarImg'); if (img) img.src = r.avatar;
     const ta = document.getElementById('topAvatar'); if (ta) ta.src = r.avatar;
   } catch (e) { alert(e.message); }
@@ -398,9 +422,9 @@ async function init() {
     const loginAvatar = document.getElementById('loginAvatar');
     const loginName = document.getElementById('loginName');
     if (LAST_USER) {
-      if (loginAvatar && LAST_USER.avatar) loginAvatar.src = LAST_USER.avatar;
+      setLoginAvatar(LAST_USER.avatar);
       if (loginName) loginName.textContent = LAST_USER.username || '';
-      // Add "Login as" / "Use another account" buttons
+      // Add "Login as" button
       const box = document.getElementById('loginBox');
       if (box && !document.getElementById('rememberBtns')) {
         const div = document.createElement('div');
@@ -443,7 +467,7 @@ async function init() {
   if (token) { showRegister(token); return; }
   // show last user's avatar on login screen (never in admin mode - admin is always fixed)
   if (!ADMIN_MODE && LAST_USER) {
-    const av = document.getElementById('loginAvatar'); if (av && LAST_USER.avatar) av.src = LAST_USER.avatar;
+    setLoginAvatar(LAST_USER.avatar);
     const un = document.getElementById('loginUser'); if (un && LAST_USER.username) un.value = LAST_USER.username;
     const nm = document.getElementById('loginName'); if (nm) nm.textContent = LAST_USER.username || '';
   }
