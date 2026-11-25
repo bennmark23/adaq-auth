@@ -8,7 +8,7 @@ function initScheduler(db, logActivity) {
 
   async function runBotJob(botId, jobName, fn) {
     const startedAt = Date.now();
-    db.prepare('INSERT INTO job_runs (bot_id,started_at,status) VALUES (?,?,?)').run(botId, startedAt, 'running');
+    db.prepare('INSERT INTO job_runs (bot_id,started_at,status,details) VALUES (?,?,?,?)').run(botId, startedAt, 'running', jobName);
     const runId = db.prepare('SELECT last_insert_rowid() as id').get().id;
     try {
       await fn();

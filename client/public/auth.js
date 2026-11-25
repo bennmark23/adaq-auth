@@ -394,7 +394,7 @@ async function loadAdmin() {
   try {
     const r = await api('/admin/activity');
     const el = document.getElementById('adminActivity');
-    if (el) el.innerHTML = (r.activity || []).slice(0, 50).map(a => `<div class="msg-item"><small>${new Date(a.created_at).toLocaleString()}</small> <b>${escapeHtml(a.username || '')}</b> ${escapeHtml(a.action)} ${escapeHtml(a.detail || '')}</div>`).join('');
+    if (el) el.innerHTML = (r.activity || []).slice(0, 50).map(a => `<div class="msg-item"><small>${new Date(a.created_at).toLocaleString()}</small> <b>${escapeHtml(a.username || '')}</b> ${a.kind === 'bot' ? '<span class="tag">BOT</span> ' : ''}${escapeHtml(a.action)} ${escapeHtml(a.detail || '')}</div>`).join('');
   } catch (e) {}
 }
 async function createInvite() {
@@ -556,6 +556,13 @@ setInterval(() => {
     const p = document.getElementById('adminTab2_bots');
     if (p && p.style.display !== 'none') loadBots();
   }
+}, 10000);
+// Keep bot job activity live while Admin Power -> Activity is open
+setInterval(() => {
+  const m = document.getElementById('adminModal');
+  if (!m || m.classList.contains('hidden')) return;
+  const act = document.getElementById('adminTab_activity');
+  if (act && act.style.display !== 'none') loadAdmin();
 }, 10000);
 async function loadUsers() {
   const el = document.getElementById('usersList');

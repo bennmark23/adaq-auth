@@ -456,7 +456,23 @@ app.post('/api/recover/:token/login', (req, res) => {
 
 app.get('/api/admin/activity', auth, requireRole('admin', 'subadmin'), (req, res) => {
   const rows = db.prepare('SELECT a.*,u.username FROM activity_log a LEFT JOIN users u ON u.id=a.user_id ORDER BY created_at DESC LIMIT 300').all();
-  res.json({ activity: rows });
+  const jobs = db.prepare('SELECT j.*,b.name AS bot_name FROM job_runs j LEFT JOIN bots b ON b.id=j.bot_id ORDER BY j.started_at DESC LIMIT 150').all();
+  const activity = rows.map(a => ({
+    created_at: a.created_at,
+    username: a.username || (a.user_id === 0 ? 'Bot System' : 'System'),
+    action: a.action, detail: a.detail, kind: 'user'
+  }));
+  for (const j of jobs) {
+    activity.push({
+      created_at: j.started_at,
+      username: j.bot_name || j.bot_id,
+      action: 'bot_job',
+      detail: 'Job ' + (j.details || 'task') + (j.status === 'running' ? ' is in progress now' : ' - ' + j.status) + (j.error ? ' (' + j.error + ')' : ''),
+      kind: 'bot'
+    });
+  }
+  activity.sort((a, b) => b.created_at - a.created_at);
+  res.json({ activity: activity.slice(0, 300) });
 });
 
 // ---- Presence/activity logging endpoint ----
@@ -467,7 +483,7 @@ app.post('/api/activity', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v19' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v20' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
