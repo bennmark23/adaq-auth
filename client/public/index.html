@@ -16,6 +16,8 @@
 html,body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 #app{max-width:960px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px calc(env(safe-area-inset-bottom,0px) + 74px)}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+#topFixed{position:sticky;top:0;z-index:60;background:var(--bg)}
+body.no-sticky-top #topFixed{position:static}
 .logo{font-size:18px;letter-spacing:3px}
 .mu{color:var(--mu)}.g{color:var(--g)}.rd{color:var(--r)}
 .ban{border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:15px}
@@ -65,6 +67,7 @@ html.adaq-auth-pending #authOverlay{display:none!important}
 try{if(sessionStorage.getItem('adaq_token'))document.documentElement.classList.add('adaq-auth-pending');}catch(e){}
 setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pending');},8000);
 </script></head><body><div id="app" style="display:none">
+<div id="topFixed">
 <header><b class="logo" id="pageTitle">Chart</b><span id="st" class="mu"></span>
   <div id="topBar" style="display:flex;align-items:center;gap:8px;margin-left:auto">
     <button id="adminBtn" onclick="document.getElementById('adminModal').classList.remove('hidden');loadAdmin()" style="display:none;background:#ea3943;color:#fff;font-weight:600;padding:8px 14px;border-radius:20px;border:1px solid #ea3943">Admins Power</button>
@@ -76,7 +79,8 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
   </div>
 </header>
 <div id="banner" class="ban none"></div>
-<div id="ses"></div><div id="announceWrap" style="margin-bottom:8px"></div>
+<div id="ses"></div></div>
+<div id="announceWrap" style="margin-bottom:8px"></div>
 
 <section id="v-chart">
  <div id="mbar"></div>
@@ -769,6 +773,7 @@ function show(t,keep){
  if(S.src==='gt'&&t!=='mm'&&!keep)exitMeme();
  S.tab=t;['chart','mk','mm','nw','tr','set','admin'].forEach(k=>$('#v-'+k).hidden=k!==t);
  const pt=document.getElementById('pageTitle');if(pt)pt.textContent=({chart:'Chart',mk:'Markets',mm:'Memes',nw:'News',tr:'Training',set:'Settings',admin:'Admin Features'})[t]||'';
+ document.body.classList.toggle('no-sticky-top',t==='nw');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
  if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}
 }
