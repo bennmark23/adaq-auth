@@ -58,6 +58,26 @@ h3{font-size:14px;margin:12px 0 4px;font-weight:600}
 .ca{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 2px 9px}
 .ca button,.row2 button{padding:3px 9px;font-size:12px}
 a{color:var(--b)}
+.online-title{font-size:12px;font-weight:700;color:var(--tx);margin:4px 0 6px}
+.online-row{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none}
+.online-row::-webkit-scrollbar{display:none}
+.online-item{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:56px;padding:0;border:0;background:none;color:var(--tx);font-size:10px;position:relative}
+.online-item img{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)}
+.online-item .bot-tag{font-size:8px;color:var(--mu);font-weight:700}
+.online-item i{position:absolute;right:6px;top:28px;width:9px;height:9px;border-radius:50%;border:2px solid var(--bg)}
+.online-item i.grn{background:#16c784}.online-item i.gry{background:#8791a3}
+.feed-card{border:1px solid var(--bd);border-radius:12px;background:var(--card);padding:12px;margin-bottom:10px}
+.feed-head{display:flex;gap:8px;align-items:center}
+.feed-src-avatar{width:32px;height:32px;flex:none;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
+.feed-head small{color:var(--mu);font-size:11px}
+.feed-excerpt{color:var(--mu);font-size:12px;margin:0 0 8px;line-height:1.45}
+.feed-img{display:block;width:100%;max-height:260px;object-fit:cover;border-radius:9px;background:var(--bg)}
+.feed-fallback{align-items:center;justify-content:center;gap:8px;min-height:120px;border-radius:9px;background:var(--bg);color:var(--mu);font-size:11px}
+.feed-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--bd)}
+.feed-actions button,.feed-actions a{border:0;background:none;color:var(--mu);font-size:12px;padding:6px 8px;text-decoration:none;cursor:pointer}
+.feed-actions a{margin-left:auto;color:var(--b)}
+.skeleton{height:96px;border-radius:12px;background:var(--card);margin-bottom:10px;animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.45}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);background:#1c2431;border:1px solid var(--bd);padding:8px 14px;border-radius:10px;z-index:30;max-width:90%;font-size:13px}
 .nw{display:block;color:inherit;text-decoration:none;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-top:6px}
 .nw.i{border-color:#5a2530}.nw .m{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:11px;margin-top:6px}
@@ -110,7 +130,8 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 </section>
 
 <section id="v-nw" hidden>
- <div id="nwch" class="chips"></div><div id="nwc"><p class="mu">Loading news?</p></div>
+<div id="onlineUserStrip" style="display:none"></div>
+<div id="nwch" class="chips"></div><div id="nwc"><p class="mu">Loading news?</p></div>
 </section>
 
 <section id="v-tr" hidden>
@@ -160,7 +181,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 </section>
 
 <div id="dt" hidden></div>
-<nav id="nav"><button data-t="chart" class="on" title="Chart">&#x1F4C8;</button><button data-t="mk" title="Markets">&#x1F4CA;</button><button data-t="mm" title="Memes">&#x1F600;</button><button data-t="nw" title="News">&#x1F4F0;</button><button data-t="tr" title="Training">&#x1F3AF;</button><button data-t="set" title="Settings">&#x2699;</button><button data-t="admin" id="adminNavBtn" style="display:none" title="Admin Features">&#x1F6E1;</button></nav>
+<nav id="nav"><button data-t="chart" class="on" title="Chart">&#x1F4C8;</button><button data-t="mk" title="Markets">&#x1F4CA;</button><button data-t="mm" title="Memes">&#x1F600;</button><button data-t="nw" title="Feed">&#x1F4F0;</button><button data-t="tr" title="Training">&#x1F3AF;</button><button data-t="set" title="Settings">&#x2699;</button><button data-t="admin" id="adminNavBtn" style="display:none" title="Admin Features">&#x1F6E1;</button></nav>
 </div>
 <script src="mqtt.min.js"></script>
 <script>
@@ -615,7 +636,7 @@ const FEEDS=[['SEC','https://www.sec.gov/news/pressreleases.rss',1],['Federal Re
 let RS=[],rsT=0;
 async function rssPoll(){
  if(Date.now()-rsT<3e5)return;rsT=Date.now();
- const out=await Promise.all(FEEDS.map(([nm,u,off])=>jget(location.origin+'/api/market/rss2json/v1/api.json?rss_url='+encodeURIComponent(u)).then(j=>(j.items||[]).slice(0,12).map(x=>({id:'r'+(x.guid||x.link),t:Date.parse(String(x.pubDate).replace(' ','T')+'Z')||Date.now(),title:(x.title||'').replace(/<[^>]*>/g,''),src:nm,url:x.link,cat:off?['Official']:['Crypto'],body:String(x.description||'').replace(/<[^>]*>/g,'').slice(0,400),off:!!off}))).catch(()=>[])));
+ const out=await Promise.all(FEEDS.map(([nm,u,off])=>jget(location.origin+'/api/market/rss2json/v1/api.json?rss_url='+encodeURIComponent(u)).then(j=>(j.items||[]).slice(0,12).map(x=>({id:'r'+(x.guid||x.link),t:Date.parse(String(x.pubDate).replace(' ','T')+'Z')||Date.now(),title:(x.title||'').replace(/<[^>]*>/g,''),src:nm,url:x.link,cat:off?['Official']:['Crypto'],body:String(x.description||'').replace(/<[^>]*>/g,'').slice(0,400),image:String(x.enclosure_url||x.thumbnail||x.image||''),off:!!off}))).catch(()=>[])));
  RS=out.flat()}
 let NW=[];S.nf='all';
 const NS=()=>new Set(LS('seen',[]));
@@ -642,7 +663,7 @@ function nNotify(n){
 async function pollNews(){
  let a=[];
  try{const r=await fetch(location.origin+'/api/market/cryptocompare/data/v2/news/?lang=EN'),j=await r.json();
-  a=(j.Data||[]).map(x=>({id:'c'+x.id,t:x.published_on*1000,title:x.title||'',src:(x.source_info&&x.source_info.name)||x.source||'',url:x.url,cat:String(x.categories||'').split('|').filter(Boolean),body:x.body||''}))}catch(e){}
+  a=(j.Data||[]).map(x=>({id:'c'+x.id,t:x.published_on*1000,title:x.title||'',src:(x.source_info&&x.source_info.name)||x.source||'',url:x.url,cat:String(x.categories||'').split('|').filter(Boolean),body:x.body||'',image:x.imageurl||''}))}catch(e){}
  const k=LS('fh','');
  if(k)try{const r=await fetch(location.origin+'/api/market/finnhub/api/v1/news?category=general&token='+encodeURIComponent(k));(await r.json()).slice(0,30).forEach(x=>a.push({id:'f'+x.id,t:x.datetime*1000,title:x.headline||'',src:x.source||'',url:x.url,cat:['Stocks'],body:x.summary||''}))}catch(e){}
  try{await rssPoll()}catch(e){}
@@ -661,8 +682,55 @@ const ago=t=>{const m=Math.max(0,Math.round((Date.now()-t)/6e4));return m<60?m+'
 function nCard(n){
  const u=/^https?:/.test(n.url||'')?n.url:'#',sn={bull:'Bullish',bear:'Bearish',neu:'Neutral'}[n.sent];
  return `<a class="nw ${n.imp?'i':''}" href="${esc(u)}" target="_blank" rel="noopener"><div class="m" style="margin:0 0 4px;justify-content:space-between"><span class="bd ${n.imp?'i':''}">${n.imp?'Important  '+n.score:'Normal'}</span><span class="mu">${ago(n.t)}</span></div><div><b>${esc(n.title)}</b></div><div class="m">${n.tags.slice(0,3).map(t=>`<span class="bd">${esc(t)}</span>`).join('')}<span class="bd ${n.sent}">${sn}</span><span class="bd ${n.off?'bull':''}">${n.off?'Official':TRUST.test(n.src||'')?'Verified outlet':'Aggregator'}</span><span class="mu" style="margin-left:auto">${esc(n.src)}</span></div></a>`}
+function renderFeed(){
+  if(!NW.length){$('#nwc').innerHTML='<div class="skeleton"></div><div class="skeleton"></div>';return}
+  const all=[...NW].sort((a,b)=>b.t-a.t);
+  const list=all.slice(0,feedState.shown);
+  $('#nwc').innerHTML=list.map(feedCard).join('')+(all.length>list.length?'<div class="skeleton"></div>':'<p class="mu">You are all caught up.</p>');
+  loadPresence();
+}
+const feedState={shown:10};
+function userRole(){return typeof USER!=='undefined'&&USER&&USER.role==='user'}
+function sourceAvatar(n){
+  const colors=['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444'];
+  let k=0;for(const c of String(n.src||''))k=(k*31+c.charCodeAt(0))>>>0;
+  return `<span class="feed-src-avatar" style="background:${colors[k%colors.length]}">${esc((n.src||'?').slice(0,1).toUpperCase())}</span>`;
+}
+function feedCard(n){
+  const img=n.image||'';
+  const excerpt=String(n.body||'').replace(/\s+/g,' ').slice(0,180);
+  const u=/^https?:/.test(n.url||'')?n.url:'#';
+  return `<article class="feed-card">
+    <div class="feed-head">${sourceAvatar(n)}<div style="flex:1"><b>${esc(n.src||'Source')}</b><br><small>${ago(n.t)}</small></div><span class="tag">${n.imp?'Important':'Update'}</span></div>
+    <h3 style="margin:8px 0 4px">${esc(n.title)}</h3><p class="feed-excerpt">${esc(excerpt)}</p>
+    ${img?`<img class="feed-img" loading="lazy" src="${esc(img)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
+    <div class="feed-fallback" style="display:${img?'none':'flex'}">${sourceAvatar(n)}<span>Image unavailable</span></div>
+    <div class="feed-actions"><button type="button" data-act="like">Like</button><button type="button" data-act="comment">Comment</button><button type="button" data-act="share">Share</button><a href="${esc(u)}" target="_blank" rel="noopener">Read more</a></div>
+  </article>`;
+}
+async function loadPresence(){
+  const strip=document.getElementById('onlineUserStrip');
+  if(!strip||!userRole()||S.tab!=='nw'){if(strip)strip.style.display='none';return}
+  try{
+    const r=await fetch('/api/presence',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}});
+    const j=await r.json();const members=j.members||[];
+    strip.style.display='block';
+    strip.innerHTML='<div class="online-title">Online User</div><div class="online-row">'+(members.map(m=>`<button type="button" class="online-item" ${m.type==='bot'?'data-bot="1"':''} title="${esc(m.name)}"><img src="${esc(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${esc(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<i class="${m.online?'grn':'gry'}"></i></button>`).join('')||'<small>No one online</small>')+'</div>';
+  }catch(e){strip.style.display='none'}
+}
+let feedBound=false;
+function bindFeed(){
+  if(feedBound||!userRole())return;feedBound=true;
+  const el=document.getElementById('nwc');let y0=0;
+  el.addEventListener('touchstart',e=>{if(el.scrollTop<=0)y0=e.touches[0].clientY},{passive:true});
+  el.addEventListener('touchend',e=>{if(y0&&e.changedTouches[0].clientY-y0>90){y0=0;pollNews()}else y0=0},{passive:true});
+  el.addEventListener('scroll',()=>{
+    if(el.scrollTop+el.clientHeight>=el.scrollHeight-160&&feedState.shown<NW.length){feedState.shown+=10;renderFeed()}
+  },{passive:true});
+}
 function renderNews(){
- chips($('#nwch'),[['all','All'],['imp','Important'],['nor','Normal'],['off','Official'],['wl','Watchlist'],['cry','Crypto'],['stk','Stocks']],S.nf,k=>{S.nf=k;renderNews()});
+ if(userRole()){bindFeed();return renderFeed()}
+  chips($('#nwch'),[['all','All'],['imp','Important'],['nor','Normal'],['off','Official'],['wl','Watchlist'],['cry','Crypto'],['stk','Stocks']],S.nf,k=>{S.nf=k;renderNews()});
  const f=S.nf,a=NW.filter(n=>f==='all'||(f==='imp'&&n.imp)||(f==='nor'&&!n.imp)||(f==='wl'&&n.wl)||(f==='off'&&n.off)||(f==='cry'&&!n.stk)||(f==='stk'&&n.stk)),
   i=a.filter(n=>n.imp),o=a.filter(n=>!n.imp);
  $('#nwc').innerHTML=((i.length?'<h3>Important</h3>'+i.map(nCard).join(''):'')+(o.length?'<h3>Normal</h3>'+o.map(nCard).join(''):'')||'<p class="mu">No stories here yet.</p>')+'<p><small>Sources: SEC and Federal Reserve (official), CoinDesk, Cointelegraph, Decrypt, The Block, Bitcoin Magazine, CryptoCompare. Keyword rules decide Important vs Normal, so double-check before acting.</small></p>';
@@ -781,7 +849,7 @@ async function chg(){if(S.src==='gt'){const p=S.gtPair&&S.gtPair.priceChange&&S.
 function show(t,keep){
  if(S.src==='gt'&&t!=='mm'&&!keep)exitMeme();
  S.tab=t;['chart','mk','mm','nw','tr','set','admin'].forEach(k=>$('#v-'+k).hidden=k!==t);
- const pt=document.getElementById('pageTitle');if(pt)pt.textContent=({chart:'Chart',mk:'Markets',mm:'Memes',nw:'News',tr:'Training',set:'Settings',admin:'Admin Features'})[t]||'';
+ const pt=document.getElementById('pageTitle');if(pt)pt.textContent=({chart:'Chart',mk:'Markets',mm:'Memes',nw:(typeof USER!=='undefined'&&USER&&USER.role==='user'?'Feed':'News'),tr:'Training',set:'Settings',admin:'Admin Features'})[t]||'';
  document.body.classList.toggle('no-sticky-top',t==='nw');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
  if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}
@@ -848,7 +916,7 @@ sessions();setInterval(sessions,30000);setInterval(poll,3000);setInterval(chg,10
 setInterval(()=>{if(S.tab==='mk'&&S.mk==='stk')stocks()},10000);
 $('#na').checked=LS('na',true);$('#na').onchange=e=>SV('na',e.target.checked);
 $('#nn').checked=LS('nn',false);$('#nn').onchange=e=>SV('nn',e.target.checked);
-setInterval(pollNews,60000);
+setInterval(pollNews,60000);setInterval(()=>{if(S.tab==='nw'&&userRole())loadPresence()},10000);
 $('#hist').addEventListener('click',e=>{if(e.target.closest('button'))return;const c=e.target.closest('[data-hv]');if(c)openHist(c.dataset.hv)});
 const BAD=['MANYUCOINUSDT','ZBCNUSDT','MANYUUSDT'];
 HS=HS.filter(h=>!BAD.includes(h.sym));SV('hist',HS);P.open=P.open.filter(t=>!BAD.includes(t.sym));P.closed=P.closed.filter(t=>!BAD.includes(t.sym));SV('paper',P);

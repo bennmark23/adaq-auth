@@ -616,8 +616,17 @@ if (GH_API && GH_TOKEN) {
   setInterval(() => { ghBackup(); ghBackupUploads(); }, 60 * 1000);
 }
 
+// Lightweight presence for the user-only Online User strip (bots included).
+app.get('/api/presence', auth, (req, res) => {
+  const users = db.prepare("SELECT id,username,role,avatar,last_active FROM users WHERE last_active>? AND role='user' ORDER BY last_active DESC").all(Date.now() - 90000)
+    .map(u => ({ id: 'u_' + u.id, name: u.username, type: 'user', online: true, avatar: u.avatar || '/default-avatar.svg' }));
+  const bots = db.prepare('SELECT id,name,status,paused FROM bots ORDER BY name').all()
+    .map(b => ({ id: b.id, name: b.name, type: 'bot', online: !b.paused && (b.status === 'online' || b.status === 'on_duty'), avatar: '/icon-192.png' }));
+  res.json({ members: [...bots, ...users] });
+});
+
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v31' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v32' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
