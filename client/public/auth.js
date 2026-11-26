@@ -1043,20 +1043,10 @@ async function loadChatMessages(id) {
       }
       const mine = m.sender_id === (USER ? USER.id : 0);
       const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
-      const reacts = (m.reactions || []).map(x => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(x.emoji)} ${x.n}</button>`).join('');
+      const reacts = (m.reactions || []).map(x => `<span class="react">${escapeHtml(x.emoji)} ${x.n}</span>`).join('');
       const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
-      const actions = m.deleted_for_everyone ? '' : `<div class="bubble-actions">
-        <button class="icon-btn" onclick="chatAction(${m.id},'react')" aria-label="React" title="React">${adaqIcon('react')}</button>
-        <button class="icon-btn" onclick="chatAction(${m.id},'reply')" aria-label="Reply" title="Reply">${adaqIcon('reply')}</button>
-        <button class="icon-btn" onclick="chatAction(${m.id},'copy')" aria-label="Copy" title="Copy">${adaqIcon('comment')}</button>
-        ${mine ? `<button class="icon-btn" onclick="chatAction(${m.id},'edit')" aria-label="Edit" title="Edit">${adaqIcon('edit')}</button><button class="icon-btn" onclick="chatAction(${m.id},'unsend')" aria-label="Unsend" title="Unsend">${adaqIcon('unsend')}</button>` : ''}
-        <button class="icon-btn" onclick="chatAction(${m.id},'delete')" aria-label="Delete for me" title="Delete for me">${adaqIcon('trash')}</button>
-        <button class="icon-btn" onclick="chatAction(${m.id},'forward')" aria-label="Forward" title="Forward">${adaqIcon('forward')}</button>
-        <button class="icon-btn" onclick="chatAction(${m.id},'report')" aria-label="Report" title="Report">${adaqIcon('report')}</button>
-      </div>`;
       return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
         <div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
-        ${actions}
         <small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
       </div>`;
     }).join('');
@@ -1121,7 +1111,7 @@ async function chatLoadOlder() {
     const params = '?before=' + encodeURIComponent(first.dataset.id || 0);
     const r = await api('/chat/conversations/' + CHAT_ID + '/messages' + params);
     const sc = document.getElementById('msgScroll');
-    if (sc && r.messages.length) sc.insertAdjacentHTML('afterbegin', r.messages.map(m => `<div class="bubble ${m.sender_id === (USER ? USER.id : 0) ? 'mine' : ''}" data-id="${m.id}">${escapeHtml(m.body || '')}<small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`).join(''));
+    if (sc && r.messages.length) sc.insertAdjacentHTML('afterbegin', r.messages.map(m => `<div class="msg-wrap ${m.sender_id === (USER ? USER.id : 0) ? 'mine' : ''}"><div class="bubble ${m.sender_id === (USER ? USER.id : 0) ? 'mine' : ''}" data-id="${m.id}">${escapeHtml(m.body || '')}</div><small class="bubble-time">${new Date(m.created_at).toLocaleDateString()} ${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`).join(''));
   } catch (e) {}
 }
 let CHAT_TYPING_T = 0;
@@ -1243,7 +1233,13 @@ async function sendChatMessage() {
     const payload = { body };
     if (REPLY_ID) { payload.reply_to = REPLY_ID; REPLY_ID = null; if (input) input.placeholder = 'Type a message'; }
     const r = await api('/chat/conversations/' + CHAT_ID + '/messages', { method: 'POST', body: payload });
-    if (r.message) { sessionStorage.removeItem('greet_' + CHAT_ID); const sc = document.getElementById('msgScroll'); if (sc) sc.insertAdjacentHTML('beforeend', `<div class="bubble mine">${escapeHtml(r.message.body || '')}<small>${new Date(r.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`); if (sc) sc.scrollTop = sc.scrollHeight; }
+    if (r.message) {
+      sessionStorage.removeItem('greet_' + CHAT_ID);
+      const sc = document.getElementById('msgScroll');
+      const d = new Date(r.message.created_at);
+      const html = `<div class="msg-wrap mine"><div class="bubble mine" data-id="${r.message.id}">${escapeHtml(r.message.body || '')}</div><small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`;
+      if (sc) { sc.insertAdjacentHTML('beforeend', html); sc.scrollTop = sc.scrollHeight; }
+    }
     loadConversations();
   } catch (e) {
     if (input) input.value = body;
