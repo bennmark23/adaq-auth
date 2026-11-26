@@ -178,6 +178,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
   <label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="wa" style="width:auto"> Alert me when a new coin gets an entry</label></div>
  <div class="card"><b>Alerts</b><br><small>Sound, vibration and notification fire while ADAQ is open.</small>
   <div class="row" style="margin-top:6px"><button id="nt" style="flex:1">Enable notifications</button><button id="snd" style="flex:1">Test sound</button></div></div>
+ <div class="card"><small>Privacy notice: the Administrator can see your signal entry and training logs (trading history only). Your private messages are never visible to the Administrator. Logs are kept until the owner changes the retention setting.</small></div>
  <div class="card"><small>ADAQ gives analysis only. Signals use EMA trend, RSI momentum, volume and ATR stops. They are not backtested, not guaranteed and not financial advice. Trade at your own risk.</small></div>
 </section>
 
@@ -380,7 +381,7 @@ function track(){
  let ch2=false;const s=S.sig;
  if(s){const id=S.sym+'|'+S.tf+'|'+s.t;if(!HS.some(h=>h.id===id)){HS.unshift(Object.assign({id,sym:S.sym,tf:S.tf,side:s.side,en:s.en,sl:s.sl,tp:s.tp,t:s.t,out:'open',sz:+LS('csz',10000)||0,rr:s.rr||2,q:s.q||0},S.src==='gt'&&S.gt?{src:'gt',chain:S.gt.chain,net:S.gt.net,pool:S.gt.pool}:{}));ch2=true}}
  HS.forEach(h=>{if(h.out!=='open'||h.sym!==S.sym||h.tf!==S.tf)return;const j=S.c.findIndex(k=>k.t>h.t);if(j<0)return;const x=outcome(S.c,h,j);if(x){h.out=x.out;h.xt=x.xt;h.xp=x.xp;ch2=true}});
- if(ch2){HS=HS.slice(0,200);SV('hist',HS);S.hd=1}
+ if(ch2){HS=HS.slice(0,200);SV('hist',HS);S.hd=1;syncTradeLogs()}
 }
 function notify(s){
  const t=(s.side>0?'LONG ENTRY ':'SHORT ENTRY ')+lab(S.sym)+' '+S.tf;
@@ -805,6 +806,34 @@ async function stocks(){
 function openCoin(s){const sym=s+'USDT';if(![...$('#sym').options].some(o=>o.value===sym)){const o=new Option(sym,sym);$('#sym').add(o)}S.sym=sym;$('#sym').value=sym;SV('sym',sym);show('chart');load()}
 ['mkc','mmc'].forEach(id=>$('#'+id).addEventListener('click',e=>{const r=e.target.closest('.row2');if(!r)return;if(r.dataset.id)showCoin(r.dataset.id);else if(r.dataset.al!==undefined)alphaSheet(+r.dataset.al)}));
 
+const LOGS_SYNCED = new Set(LS('synced_logs', []));
+async function pushLog(kind, e) {
+  const key = kind + ':' + e.id + ':' + (e.result || 'open');
+  if (LOGS_SYNCED.has(key)) return;
+  try {
+    await api('/logs/' + kind, { method: 'POST', body: { entry: e } });
+    LOGS_SYNCED.add(key); SV('synced_logs', [...LOGS_SYNCED].slice(-1000));
+  } catch (err) {}
+}
+function syncTradeLogs() {
+  if (!USER || USER.role !== 'user') return;
+  HS.slice(0, 50).forEach(h => pushLog('signal', {
+    id: h.id, coin: h.sym, timeframe: h.tf, side: h.side > 0 ? 'Long' : 'Short',
+    entry: h.en, stop_loss: h.sl, take_profit: h.tp, size_usd: h.sz,
+    result: h.out, exit_price: h.xp || null,
+    pnl_pct: h.xp ? Math.round((h.side * (h.xp - h.en) / h.en * 100) * 100) / 100 : null,
+    pnl_usd: h.xp ? Math.round(h.side * (h.xp - h.en) * (h.sz / h.en) * 100) / 100 : null,
+    quality: h.q || 0, created_at: h.t, closed_at: h.xt || null
+  }));
+  P.open.concat(P.closed).slice(0, 50).forEach(t => pushLog('training', {
+    id: t.id, coin: t.sym, timeframe: t.tf, side: t.side > 0 ? 'Long' : 'Short',
+    size_usd: t.sz, entry: t.en, stop: t.sl, take_profit: t.tp, exit: t.ex || null,
+    result: t.ex ? (t.why === 'Stop hit' ? 'sl' : t.why === 'Target hit' ? 'tp' : 'closed') : 'open',
+    pnl_pct: t.ex ? Math.round((t.pnl / (t.en * t.q) * 100) * 100) / 100 : null,
+    pnl_usd: t.ex ? Math.round(t.pnl * 100) / 100 : null,
+    close_reason: t.why || '', opened_at: t.t, closed_at: t.xt || null
+  }));
+}
 function msg(t){$('#tmsg').textContent=t}
 function setSide(s){S.side=s;$('#sL').classList.toggle('on',s>0);$('#sS').classList.toggle('on',s<0)}
 function openT(){
@@ -812,9 +841,9 @@ function openT(){
  if(!(sz>0)||!px)return msg('Enter a size.');
  if(!sl)return msg('Stop loss is required.');
  if(S.side>0?sl>=px:sl<=px)return msg('Stop must be '+(S.side>0?'below':'above')+' the entry price.');
- P.open.push({id:Date.now(),sym:S.sym,side:S.side,en:px,sl,tp,q:sz/px,sz,tf:S.tf,t:Date.now()});SV('paper',P);msg('');renderPos();draw();
+ P.open.push({id:Date.now(),sym:S.sym,side:S.side,en:px,sl,tp,q:sz/px,sz,tf:S.tf,t:Date.now()});SV('paper',P);msg('');renderPos();draw();syncTradeLogs();
 }
-function closeT(id,price,why){const i=P.open.findIndex(t=>t.id===id);if(i<0)return;const t=P.open.splice(i,1)[0];t.ex=price;t.why=why;t.pnl=t.side*(price-t.en)*t.q;P.closed.unshift(t);P.closed=P.closed.slice(0,100);SV('paper',P);renderPos();draw()}
+function closeT(id,price,why){const i=P.open.findIndex(t=>t.id===id);if(i<0)return;const t=P.open.splice(i,1)[0];t.ex=price;t.why=why;t.pnl=t.side*(price-t.en)*t.q;P.closed.unshift(t);P.closed=P.closed.slice(0,100);SV('paper',P);renderPos();draw();syncTradeLogs()}
 function checkPaper(){
  P.open.slice().forEach(t=>{const p=PR[t.sym];if(!p)return;
   if(t.side>0?p<=t.sl:p>=t.sl)closeT(t.id,t.sl,'Stop hit');
@@ -924,6 +953,7 @@ const BAD=['MANYUCOINUSDT','ZBCNUSDT','MANYUUSDT'];
 HS=HS.filter(h=>!BAD.includes(h.sym));SV('hist',HS);P.open=P.open.filter(t=>!BAD.includes(t.sym));P.closed=P.closed.filter(t=>!BAD.includes(t.sym));SV('paper',P);
 if(BAD.includes(S.sym)){S.sym='BTCUSDT';SV('sym','BTCUSDT')}
 renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=document.getElementById('pageTitle');if(p0)p0.textContent='Memes'}
+window.syncTradeLogs=syncTradeLogs;
 </script><link rel="stylesheet" href="auth.css">
 <div id="authOverlay" style="display:flex">
   <div class="card" id="loginBox">
@@ -974,6 +1004,14 @@ renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=documen
   <small style="color:#8791a3;display:block;margin:6px 0 10px">Codes change every 30 seconds. If a correct code is rejected, set your phone's date &amp; time to automatic.</small>
   <button onclick="submitEnroll()">Verify & Enable</button>
   <div id="enrollMsg" style="color:#ea3943;margin-top:8px"></div>
+</div></div>
+<div id="userLogsModal" class="modal hidden"><div class="sheet ui-sheet">
+  <div class="ui-head"><div><h3 id="userLogsTitle" style="margin:0">User logs</h3><small class="muted">Read-only · Administrator view</small></div>
+    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('userLogsModal').classList.add('hidden')">×</button></div>
+  <div class="ui-body">
+    <div class="row"><input type="date" id="logDate" onchange="loadUserLogs()"><input id="logCoin" placeholder="Coin" onchange="loadUserLogs()"><select id="logTf" onchange="loadUserLogs()"><option value="">All timeframes</option></select><select id="logSide" onchange="loadUserLogs()"><option value="">Long/Short</option><option value="Long">Long</option><option value="Short">Short</option></select><select id="logResult" onchange="loadUserLogs()"><option value="">All results</option><option value="open">Open</option><option value="tp">Take profit</option><option value="sl">Stop loss</option></select></div>
+    <div id="logSummary" class="card"></div><div id="logRows"></div>
+  </div>
 </div></div>
 <div id="profileModal" class="modal hidden"><div class="sheet ui-sheet">
   <div class="ui-head">

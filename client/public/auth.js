@@ -263,6 +263,10 @@ async function afterLogin() {
   if (rtf) rtf.onchange = loadReports;
   // presence heartbeat
   setInterval(() => { api('/activity', { method: 'POST', body: { action: 'heartbeat' } }).catch(() => {}); }, 30000);
+  if (typeof window.syncTradeLogs === 'function') window.syncTradeLogs();
+  try {
+    if (!LS('privacy_notice_seen', false)) { SV('privacy_notice_seen', true); if (USER.role === 'user') alert('Privacy notice: the Administrator can see your signal entry and training logs only. Your private messages are never visible to the Administrator.'); }
+  } catch (e) {}
 }
 
 function logout() {
@@ -526,6 +530,41 @@ async function addDesignReport() {
 }
 
 // ---- Admin ----
+let LOG_USER = 0, LOG_KIND = 'signal';
+async function openUserProfile(id) {
+  LOG_USER = Number(id);
+  const p = document.getElementById('profileModal');
+  let act = document.getElementById('adminLogActions');
+  if (!act) {
+    act = document.createElement('div'); act.id = 'adminLogActions'; act.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap';
+    p.querySelector('.ui-body').appendChild(act);
+  }
+  act.innerHTML = `<button class="btn btn-ghost" onclick="openUserLogs('signal')">Signal entry log</button><button class="btn btn-ghost" onclick="openUserLogs('training')">Training log</button>`;
+  const name = document.getElementById('profNewUser');
+  if (name) name.value = '';
+  document.getElementById('profileModal').classList.remove('hidden');
+}
+async function openUserLogs(kind) {
+  LOG_KIND = kind;
+  document.getElementById('userLogsTitle').textContent = (kind === 'signal' ? 'Signal entry log' : 'Training log');
+  const tf = document.getElementById('logTf');
+  if (tf && !tf.options.length) tf.innerHTML = '<option value="">All timeframes</option>' + (typeof TFS !== 'undefined' ? TFS : ['1m','5m','15m','1h','4h','1d']).map(t => `<option value="${t}">${t}</option>`).join('');
+  document.getElementById('profileModal').classList.add('hidden');
+  document.getElementById('userLogsModal').classList.remove('hidden');
+  await loadUserLogs();
+}
+async function loadUserLogs() {
+  const base = '/admin/users/' + LOG_USER + '/' + (LOG_KIND === 'signal' ? 'signal-logs' : 'training-logs');
+  const p = [];
+  const d = document.getElementById('logDate').value, c = document.getElementById('logCoin').value.trim(), tf = document.getElementById('logTf').value, s = document.getElementById('logSide').value, r = document.getElementById('logResult').value;
+  if (d) p.push('date=' + d); if (c) p.push('coin=' + encodeURIComponent(c)); if (tf) p.push('tf=' + tf); if (s) p.push('side=' + s); if (r) p.push('result=' + r);
+  try {
+    const [logs, sum] = await Promise.all([api(base + (p.length ? '?' + p.join('&') : '')), api('/admin/users/' + LOG_USER + '/trading-summary')]);
+    const x = LOG_KIND === 'signal' ? sum.signal : sum.training;
+    document.getElementById('logSummary').innerHTML = `<b>Summary</b><br><small>Total: ${x.total||0} · Win rate: ${x.total ? Math.round((x.wins||0)/x.total*100) : 0}% · P/L: $${(x.pnl||0).toFixed(2)} · Open: ${x.open||0}</small>`;
+    document.getElementById('logRows').innerHTML = (logs.logs || []).map(l => `<div class="msg-item"><small>${new Date(LOG_KIND === 'signal' ? l.created_at : l.opened_at).toLocaleString()}${l.closed_at ? ' → ' + new Date(l.closed_at).toLocaleString() : ''}</small><br><b>${escapeHtml(l.coin||'')}</b> <small>${escapeHtml(l.timeframe||'')} · ${escapeHtml(l.side||'')} · ${escapeHtml(l.result||'')}</small><br><small>Entry ${l.entry||''} · SL ${l.stop_loss||l.stop||''} · TP ${l.take_profit||''} · Size $${l.size_usd||''} · Exit ${l.exit_price||l.exit||''} · P/L ${l.pnl_usd||0} (${l.pnl_pct||0}%) · Quality ${l.quality||''}${l.close_reason?' · '+escapeHtml(l.close_reason):''}</small></div>`).join('') || '<small>No entries.</small>';
+  } catch (e) { document.getElementById('logRows').textContent = e.message; }
+}
 async function loadAdmin() {
   try {
     const r = await api('/admin/users');
@@ -749,7 +788,7 @@ async function loadUsers() {
   try {
     const r = await api('/admin/members?type=user');
     el.innerHTML = (r.members || []).map(u => `<div class="msg-item">
-      <span class="${u.status === 'online' ? 'online' : 'offline'}">●</span>
+<img src="${escapeHtml(u.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" style="width:30px;height:30px;border-radius:50%;object-fit:cover;cursor:pointer;flex:none" onclick="openUserProfile(${u.id.replace('u_','')})" alt=""> <span class="${u.status === 'online' ? 'online' : 'offline'}">●</span>
       <b>${escapeHtml(u.name)}</b> <small>${u.role}</small>
       <br><small>${u.status} · last active: ${u.last_active ? new Date(u.last_active).toLocaleString() : 'never'}</small>
       ${USER.role === 'admin' && u.id !== 'u_' + USER.id ? `<br><button onclick="deleteUserAccount(${u.id.replace('u_','')})" style="margin-top:4px;color:#ea3943">Delete</button> <button onclick="genRecoveryLink(${u.id.replace('u_','')})">Recovery Link</button>` : ''}

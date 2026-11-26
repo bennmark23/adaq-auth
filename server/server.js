@@ -163,8 +163,10 @@ CREATE TABLE IF NOT EXISTS recovery_tokens (
 // New feature tables (additive migrations; existing tables are untouched).
 const { setup: setupDesigns, registerRoutes: registerDesignRoutes } = require('./designs');
 const { setup: setupMessenger, registerRoutes: registerMessengerRoutes } = require('./messenger');
+const { setup: setupLogs, registerRoutes: registerLogRoutes } = require('./trading_logs');
 setupDesigns(db);
 setupMessenger(db);
+setupLogs(db);
 
 // seed admin
 const adminRow = db.prepare('SELECT id FROM users WHERE username=?').get('admin');
@@ -662,6 +664,8 @@ app.use('/api/market', async (req, res) => {
 registerDesignRoutes(app, db, auth, requireRole, logActivity, broadcast);
 // In-house Messenger (own DB + own WebSocket)
 registerMessengerRoutes(app, db, auth, broadcast);
+// Per-user trading logs (admin-only read)
+registerLogRoutes(app, db, auth, requireRole);
 
 // Register bot API (must be before the catch-all)
 const botInfo = registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clients, isOnline);
