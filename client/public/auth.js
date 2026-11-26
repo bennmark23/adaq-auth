@@ -24,6 +24,17 @@ const $$ = s => document.querySelector(s);
 // Remove the pre-paint auth guard (index.html) once the auth state is known.
 function authReady() { document.documentElement.classList.remove('adaq-auth-pending'); }
 // Keep the login screen's remembered user (name + avatar) in sync with the account.
+async function validateLastUser() {
+  if (!LAST_USER || !LAST_USER.username || ADMIN_MODE) return;
+  try {
+    const r = await fetch(getServerUrl() + '/api/public/user-exists?username=' + encodeURIComponent(LAST_USER.username));
+    const j = await r.json();
+    if (!j.exists) {
+      LAST_USER = null;
+      try { localStorage.removeItem('adaq_last_user'); localStorage.removeItem('adaq_last_name'); } catch (e) {}
+    }
+  } catch (e) {}
+}
 function setLoginGreeting() {
   const el = document.getElementById('loginGreeting');
   if (!el) return;
@@ -736,6 +747,7 @@ async function init() {
     if (me) { USER = me; hideLogin(); await afterLogin(); return; }
     logout(); return;
   }
+  await validateLastUser();
   showLogin();
 }
 if (document.readyState === 'complete' || document.readyState === 'interactive') {

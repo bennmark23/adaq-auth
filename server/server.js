@@ -670,6 +670,13 @@ app.get('/api/presence', auth, (req, res) => {
   res.json({ members: [...bots, ...users] });
 });
 
+// Public, minimal check so the login screen never suggests an account that no longer exists.
+app.get('/api/public/user-exists', (req, res) => {
+  const name = String(req.query.username || '').trim();
+  const u = db.prepare("SELECT id FROM users WHERE username=? AND role='user'").get(name);
+  res.json({ exists: !!u });
+});
+
 // ---- Health check ----
 function pushNotify(userId, title, body) {
   try {
@@ -690,7 +697,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v44' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v45' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
