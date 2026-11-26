@@ -89,13 +89,17 @@ function registerBotApi(app, db, auth, requireRole, logActivity, broadcast, clie
 
   // Helper: public bot info
   function publicBot(b) {
-    const onBreak = false; // simplified; real impl checks schedule
-    const onDuty = !b.paused;
+    // A bot is "working" only if it actually ran a job in the last 24 hours.
+    // The bots.status column can be stale (startup used to force everyone online),
+    // so job_runs is the source of truth and must match the health-check report.
+    const lastRun = db.prepare('SELECT started_at FROM job_runs WHERE bot_id=? ORDER BY started_at DESC LIMIT 1').get(b.id);
+    const fresh = !!lastRun && Date.now() - lastRun.started_at < 24 * 3600 * 1000;
+    const working = !b.paused && fresh && b.status !== 'error';
     return {
       id: b.id, name: b.name, role: b.role, description: b.description,
-      status: b.paused ? 'paused' : (b.status || 'offline'),
-      paused: !!b.paused, online: b.status === 'online' || b.status === 'on_duty',
-      last_heartbeat: b.last_heartbeat, last_job_at: b.last_job_at,
+      status: b.paused ? 'paused' : (working ? (b.status === 'error' ? 'error' : 'on_duty') : 'offline'),
+      paused: !!b.paused, online: working,
+      last_heartbeat: b.last_heartbeat, last_job_at: lastRun ? lastRun.started_at : b.last_job_at,
       created_at: b.created_at,
     };
   }

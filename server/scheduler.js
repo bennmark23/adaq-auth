@@ -64,11 +64,16 @@ function initScheduler(db, logActivity) {
         if (b.paused) continue;
         const lastRun = db.prepare('SELECT * FROM job_runs WHERE bot_id=? ORDER BY started_at DESC LIMIT 1').get(b.id);
         if (!lastRun || (Date.now() - lastRun.started_at > 24 * 3600 * 1000)) {
-          // Bot hasn't run in 24h - file incident
-          db.prepare('INSERT INTO reports (type,title,body,author_bot,severity,status,created_at) VALUES (?,?,?,?,?,?,?)').run(
-            'Bot Health and Incident Report', b.name + ' missed run',
-            b.name + ' has not run in over 24 hours.', 'mr_monkey', 'high', 'new', Date.now()
-          );
+          // Bot hasn't run in 24h - file one open incident (no duplicates every 15 min).
+          db.prepare("UPDATE bots SET status='offline' WHERE id=?").run(b.id);
+          const title = b.name + ' missed run';
+          const open = db.prepare("SELECT id FROM reports WHERE type='Bot Health and Incident Report' AND title=? AND status IN ('new','read','to_priority') LIMIT 1").get(title);
+          if (!open) {
+            db.prepare('INSERT INTO reports (type,title,body,author_bot,severity,status,created_at) VALUES (?,?,?,?,?,?,?)').run(
+              'Bot Health and Incident Report', title,
+              b.name + ' has not run in over 24 hours.', 'mr_monkey', 'high', 'new', Date.now()
+            );
+          }
         }
       }
       db.prepare('UPDATE bots SET status=?,last_heartbeat=? WHERE id=?').run('online', Date.now(), 'mr_monkey');
@@ -211,8 +216,9 @@ function initScheduler(db, logActivity) {
     } catch (e) { console.log('design queue error:', e.message); }
   }, 60 * 1000);
 
-  // Mark all bots as online on startup
-  db.prepare("UPDATE bots SET status='online', last_heartbeat=?").run(Date.now());
+  // Do NOT force every bot online on startup: real status comes from job_runs
+  // via publicBot(), so the Bots list matches the health-check reports.
+  db.prepare('UPDATE bots SET last_heartbeat=? WHERE status<>?').run(Date.now(), 'paused');
 
   console.log('Scheduler initialized (Asia/Manila timezone)');
 }

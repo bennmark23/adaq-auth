@@ -649,7 +649,11 @@ app.get('/api/presence', auth, (req, res) => {
   const users = db.prepare("SELECT id,username,role,avatar,last_active FROM users WHERE last_active>? AND role='user' ORDER BY last_active DESC").all(Date.now() - 90000)
     .map(u => ({ id: 'u_' + u.id, name: u.username, type: 'user', online: true, avatar: u.avatar || '/default-avatar.svg' }));
   const bots = db.prepare('SELECT id,name,status,paused FROM bots ORDER BY name').all()
-    .map(b => ({ id: b.id, name: b.name, type: 'bot', online: !b.paused && (b.status === 'online' || b.status === 'on_duty'), avatar: '/icon-192.png' }));
+    .map(b => {
+      const r = db.prepare('SELECT started_at FROM job_runs WHERE bot_id=? ORDER BY started_at DESC LIMIT 1').get(b.id);
+      const working = !b.paused && b.status !== 'error' && !!r && Date.now() - r.started_at < 24 * 3600 * 1000;
+      return { id: b.id, name: b.name, type: 'bot', online: working, avatar: '/icon-192.png' };
+    });
   res.json({ members: [...bots, ...users] });
 });
 
@@ -673,7 +677,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v40' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v41' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
