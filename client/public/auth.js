@@ -560,7 +560,7 @@ async function loadFriendStrip(){
     const bots=(j.members||[]).filter(m=>m.type==='bot');
     const members=[...users,...bots]; // users first, bots always at the end
     const item=m=>`<button class="friend-item" ${m.type==='bot'?'data-bot="1"':'data-uid="'+(m.id||'').replace('u_','')+'"'} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<i class="dot ${m.online?'on':''}"></i></button>`;
-    s.innerHTML='<div class="track">'+members.map(item).join('')+'</div>';
+    s.innerHTML='<div class="track">'+(members.length ? members.map(item).join('') : '<small class="muted">No one online right now.</small>')+'</div>';
     // Manual horizontal scroll: drag with mouse on desktop, native finger scroll on APK.
     let dragging=false,x0=0,scroll0=0;
     s.onpointerdown=e=>{if(e.pointerType==='touch')return;dragging=true;x0=e.clientX;scroll0=s.scrollLeft;s.setPointerCapture&&s.setPointerCapture(e.pointerId)};
@@ -1002,6 +1002,12 @@ async function refreshUnread() {
   } catch (e) {}
 }
 async function openMessenger() {
+  const modal = document.getElementById('messengerModal');
+  if (modal) {
+    modal.classList.remove('chat-open'); // always start at the list, never a stale chat
+    const full = document.getElementById('chatFull'); if (full) full.innerHTML = '';
+  }
+  CHAT_ID = null;
   document.getElementById('messengerModal').classList.remove('hidden');
   await loadConversations(); loadFriendStrip();
   refreshUnread();
