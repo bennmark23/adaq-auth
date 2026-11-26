@@ -611,7 +611,17 @@ async function ghBackup() {
       const j = await r.json();
       if (j && j.content && j.content.sha) ghSha = j.content.sha;
       console.log('DB backed up to GitHub');
-    } else { console.log('DB backup failed:', r.status, (await r.text()).slice(0, 120)); }
+    } else {
+      const txt = (await r.text()).slice(0, 200);
+      console.log('DB backup failed:', r.status, txt);
+      console.log('Backup target:', GH_REPO, '/', GH_PATH, 'branch', GH_BRANCH);
+      try {
+        const check = await fetch('https://api.github.com/repos/' + GH_REPO, { headers: ghHeaders() });
+        console.log('Repo visibility check:', check.status, 'repository exists & token can read:', check.ok);
+        const repos = await fetch('https://api.github.com/user/repos?per_page=100', { headers: ghHeaders() });
+        if (repos.ok) console.log('Repos visible to token:', (await repos.json()).map(x => x.full_name).join(', '));
+      } catch (e) { console.log('GitHub diagnostic failed:', e.message); }
+    }
   } catch (e) { console.log('DB backup failed:', e.message); }
   try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
 }
@@ -680,7 +690,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v42' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v43' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
