@@ -706,8 +706,9 @@ function switchAdminTab2(t) {
   });
   if (t === 'bots') loadBots();
   if (t === 'users') loadUsers();
-  if (t === 'reports') { loadReports(); loadDesigns(); }
+  if (t === 'reports') { const f = document.getElementById('reportFilter'); if (f) f.value = ''; const tf = document.getElementById('reportTypeFilter'); if (tf) tf.value = ''; loadReports(); loadDesigns(); }
   if (t === 'meeting') loadMeeting();
+  if (typeof resetScroll === 'function') resetScroll();
 }
 // Lightweight pixel-style bot characters in one shared office room (CSS/SVG only)
 const BOT_COLORS={mr_admin:'#3b82f6',mr_monkey:'#f59e0b',mr_hunter:'#10b981',mr_designer:'#ec4899',mr_chart:'#06b6d4',mrs_stoploss:'#ef4444',mr_take_profit:'#16c784',mrs_qa:'#8b5cf6',mr_whitehack:'#6366f1'};
@@ -808,7 +809,10 @@ async function loadReports() {
     if (type) params.push('type=' + encodeURIComponent(type));
     if (params.length) url += '?' + params.join('&');
     const r = await api(url);
-    el.innerHTML = (r.reports || []).map(rep => `<div class="msg-item">
+    const all = r.reports || [];
+    const badge = document.getElementById('reportTabBadge');
+    if (badge) { const n = all.filter(x => x.status === 'new').length; badge.style.display = n ? '' : 'none'; badge.textContent = n; }
+    el.innerHTML = (all).map(rep => `<div class="msg-item">
       <b>${escapeHtml(rep.title)}</b> <small>${rep.type} · ${rep.severity} · ${rep.author_bot}</small>
       <br><small>${new Date(rep.created_at).toLocaleString()} · status: ${rep.status}</small>
       <div style="margin-top:4px;font-size:13px">${escapeHtml(rep.body).slice(0, 200)}${rep.body.length > 200 ? '...' : ''}</div>

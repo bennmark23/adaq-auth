@@ -876,13 +876,21 @@ async function resolveOpen(){
  if(chd){SV('hist',HS);renderHist()}}
 async function chg(){if(S.src==='gt'){const p=S.gtPair&&S.gtPair.priceChange&&S.gtPair.priceChange.h24;$('#chg').textContent=p==null?'':(p>=0?'+':'')+Math.round(p*10)/10+'%';$('#chg').className=p>=0?'g':'rd';return}try{const r=await fetch(`${BASE}/ticker/24hr?symbol=${S.sym}`),d=await r.json(),p=+d.priceChangePercent;$('#chg').textContent=(p>=0?'+':'')+p.toFixed(2)+'%';$('#chg').className=p>=0?'g':'rd'}catch(e){}}
 
+function resetScroll(smooth){
+  requestAnimationFrame(()=>{
+    try{window.scrollTo({top:0,behavior:smooth?'smooth':'auto'})}catch(e){window.scrollTo(0,0)}
+    ['nwc','botsList','usersList','reportsList','adminActivity','msgList','pastAnnounceList','convList','msgScroll'].forEach(id=>{const el=document.getElementById(id);if(el)el.scrollTop=0});
+    document.querySelectorAll('.ui-body,.msg-scroll,.sheet').forEach(el=>{try{el.scrollTop=0}catch(e){}});
+  });
+}
 function show(t,keep){
+  const sameTab=(typeof S!=='undefined'&&S)?S.tab===t:false;
  if(S.src==='gt'&&t!=='mm'&&!keep)exitMeme();
  S.tab=t;['chart','mk','mm','nw','tr','set','admin'].forEach(k=>$('#v-'+k).hidden=k!==t);
  const pt=document.getElementById('pageTitle');if(pt)pt.textContent=({chart:'Chart',mk:'Markets',mm:'Memes',nw:(typeof USER!=='undefined'&&USER&&USER.role==='user'?'Feed':'News'),tr:'Training',set:'Settings',admin:'Admin Features'})[t]||'';
  document.body.classList.toggle('no-sticky-top',t==='nw');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
- if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}
+ if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}resetScroll(sameTab);}
 }
 $('#nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
 $('#sym').innerHTML=SYMS.map(s=>`<option>${s}</option>`).join('');$('#sym').value=S.sym;
@@ -1108,6 +1116,7 @@ function switchAdminTab(t){
   if(t==='messages') loadMessages();
   if(t==='announce') loadPastAnnouncements();
   if(t==='settings') loadAdminPath();
+  resetScroll();
 }
 </script>
 <script src="auth.js"></script>
@@ -1115,7 +1124,7 @@ function switchAdminTab(t){
   <div class="tabbar">
     <button class="on" onclick="switchAdminTab2('bots')">Bots</button>
     <button onclick="switchAdminTab2('users')">Users</button>
-    <button onclick="switchAdminTab2('reports')">Reports</button>
+    <button onclick="switchAdminTab2('reports')">Reports <span id="reportTabBadge" class="nbadge" style="display:none"></span></button>
     <button onclick="switchAdminTab2('meeting')">Meeting Room</button>
   </div>
   <div id="adminTab2_bots">

@@ -714,8 +714,9 @@ setInterval(() => {
   const retentionDays = parseInt((db.prepare('SELECT value FROM settings WHERE key=?').get('logRetentionDays') || { value: '14' }).value, 10);
   const cutoff = Date.now() - retentionDays * 24 * 3600 * 1000;
   db.prepare('DELETE FROM activity_log WHERE created_at < ?').run(cutoff);
-  // Delete done reports older than 7 days
-  db.prepare("DELETE FROM reports WHERE status='done' AND done_at < ?").run(Date.now() - 7 * 24 * 3600 * 1000);
+  // Delete only Done reports older than 7 days. Read / Priority are never deleted.
+  const removed = db.prepare("DELETE FROM reports WHERE status='done' AND done_at < ?").run(Date.now() - 7 * 24 * 3600 * 1000);
+  if (removed.changes) logActivity(0, 'report_cleanup', 'deleted ' + removed.changes + ' done reports');
 }, 3600000); // every hour
 
 // Seed a daily report from Mr. Admin on startup (demo)
