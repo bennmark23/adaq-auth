@@ -97,7 +97,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
       <img id="topAvatar" src="icon-192.png" style="width:24px;height:24px;border-radius:50%;object-fit:cover;background:#232c3b">
       <span id="topUsername" style="font-size:13px">Profile</span>
     </button>
-    <button id="msgIconBtn" onclick="openMessenger()" title="Messenger" style="position:relative;display:none;border:1px solid var(--bd);background:var(--card);border-radius:20px;padding:6px 10px;cursor:pointer;font-size:16px">💬<span id="msgUnread" class="nbadge" style="display:none"></span></button>
+    <button id="msgIconBtn" onclick="openMessenger()" title="Messenger" aria-label="Messenger" style="position:relative;display:none;border:1px solid var(--bd);background:var(--card);border-radius:20px;width:44px;height:44px;cursor:pointer;color:var(--icon-active)"><span id="msgIconGlyph"></span><span id="msgUnread" class="nbadge" style="display:none"></span></button>
   </div>
 </header>
 <div id="banner" class="ban none"></div>
@@ -183,9 +183,10 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 </section>
 
 <div id="dt" hidden></div>
-<nav id="nav"><button data-t="chart" class="on" title="Chart">&#x1F4C8;</button><button data-t="mk" title="Markets">&#x1F4CA;</button><button data-t="mm" title="Memes">&#x1F600;</button><button data-t="nw" title="Feed">&#x1F4F0;</button><button data-t="tr" title="Training">&#x1F3AF;</button><button data-t="set" title="Settings">&#x2699;</button><button data-t="admin" id="adminNavBtn" style="display:none" title="Admin Features">&#x1F6E1;</button></nav>
+<nav id="nav"><button data-t="chart" class="on" title="Chart" aria-label="Chart"></button><button data-t="mk" title="Markets" aria-label="Markets"></button><button data-t="mm" title="Memes" aria-label="Memes"></button><button data-t="nw" title="Feed" aria-label="Feed"></button><button data-t="tr" title="Training" aria-label="Training"></button><button data-t="set" title="Settings" aria-label="Settings"></button><button data-t="admin" id="adminNavBtn" style="display:none" title="Admin Features" aria-label="Admin Features"></button></nav>
 </div>
 <script src="mqtt.min.js"></script>
+<script src="icons.js"></script>
 <script>
 const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
@@ -892,6 +893,7 @@ function show(t,keep){
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
  if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}resetScroll(sameTab);}
 $('#nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
+(()=>{const m={chart:'chart',mk:'markets',mm:'memes',nw:'feed',tr:'training',set:'settings',admin:'admin'};document.querySelectorAll('#nav button').forEach(b=>{b.innerHTML=adaqIcon(m[b.dataset.t]||'comment');b.classList.add('icon-btn')});document.querySelectorAll('.icon-btn').forEach(b=>{if(b.textContent.trim()==='×')b.innerHTML=adaqIcon('close')});(()=>{const g=document.getElementById('msgIconGlyph');if(g)g.innerHTML=adaqIcon('messenger');const s=document.getElementById('chatSettingsGlyph');if(s)s.innerHTML=adaqIcon('settings')})();})();
 $('#sym').innerHTML=SYMS.map(s=>`<option>${s}</option>`).join('');$('#sym').value=S.sym;
 $('#sym').onchange=e=>{if(S.src==='gt'){const it=MU[+e.target.value];if(it)selectMeme(it);return}S.sym=e.target.value;SV('sym',S.sym);load();chg()};
 function tfs(){chips($('#tfs'),(S.src==='gt'?Object.keys(GTF):TFS).map(t=>[t,t]),S.tf,k=>{S.tf=k;SV('tf',k);tfs();load()})}tfs();
@@ -1034,7 +1036,7 @@ window.syncTradeLogs=syncTradeLogs;
       </div>
     </div>
     <div class="ui-field"><label for="profNewUser">Username <small class="muted">· once per week</small></label><input id="profNewUser" placeholder="New username" autocomplete="off"></div>
-    <div class="ui-field"><label for="profTheme">Theme</label><select id="profTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="blue">Blue</option><option value="yellow">Yellow</option><option value="brown">Brown</option></select></div>
+    <div class="ui-field"><label for="profTheme">Theme</label><select id="profTheme"><option value="dark">Dark</option><option value="light">Light</option><option value="auto">Auto (device)</option><option value="blue">Blue</option><option value="yellow">Yellow</option><option value="brown">Brown</option></select></div>
     <label class="ui-check"><input type="checkbox" id="profAlerts" style="width:auto"> <span>Alerts &amp; notifications</span></label>
     <div id="profMsg" class="ui-msg"></div>
   </div>
@@ -1047,7 +1049,7 @@ window.syncTradeLogs=syncTradeLogs;
 <div id="messengerModal" class="modal hidden"><div class="sheet ui-sheet msg-sheet">
   <div class="ui-head">
     <div><h3 style="margin:0">Messenger</h3><small class="muted">Your private conversations</small></div>
-    <div style="display:flex;gap:6px"><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="createGroup()">+ Group</button><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="chatSettings()">⚙</button>
+    <div style="display:flex;gap:6px"><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="createGroup()">+ Group</button><button class="icon-btn" aria-label="Messenger settings" title="Messenger settings" onclick="chatSettings()"><span id="chatSettingsGlyph"></span></button>
     <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden')">×</button></div>
   </div>
   <div class="msg-layout">
@@ -1163,6 +1165,7 @@ function switchAdminTab(t){
     <button onclick="openMeeting()" style="margin-top:8px">Open Meeting</button>
   </div>
 </section>
+<script>(()=>{const s=document.getElementById('chatSettingsGlyph');if(s)s.innerHTML=adaqIcon('settings');document.querySelectorAll('.icon-btn').forEach(b=>{if(b.textContent.trim()==='×')b.innerHTML=adaqIcon('close')});})();</script>
 </body></html>
 
 

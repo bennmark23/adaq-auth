@@ -279,10 +279,13 @@ function logout() {
 }
 
 // ---- Theme ----
-function applyTheme(t) {
-  document.body.className = 'th-' + (t || 'dark');
-  if (USER) USER.theme = t;
+function resolvedTheme(t){if(t==='auto')return (window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';return t||'dark'}
+function applyTheme(t){
+  document.body.className='th-'+String(resolvedTheme(t)).replace(/[^a-z]/g,'');
+  if(USER)USER.theme=t;
 }
+if(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').addEventListener)
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>{if(USER&&USER.theme==='auto')applyTheme('auto')});
 
 // ---- Announcements ----
 // ---- Announcement carousel ----
@@ -992,21 +995,21 @@ async function loadChatMessages(id) {
         const reacts = (m.reactions || []).map(r => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(r.emoji)} ${r.n}</button>`).join('');
         return `<div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">
           ${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}
-          ${m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${escapeHtml(m.attachment.thumbnail || m.attachment.path)}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${escapeHtml(m.attachment.path)}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${escapeHtml(m.attachment.path)}"></audio>` : `<a class="file-link" href="${escapeHtml(m.attachment.path)}" target="_blank" rel="noopener">📄 ${escapeHtml(m.attachment.name || 'File')}</a>`) : ''}
+          ${m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${escapeHtml(m.attachment.thumbnail || m.attachment.path)}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${escapeHtml(m.attachment.path)}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${escapeHtml(m.attachment.path)}"></audio>` : `<a class="file-link" href="${escapeHtml(m.attachment.path)}" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : ''}
           ${body}${m.edited_at ? '<small>Edited</small>' : ''}
           ${m.deleted_for_everyone ? '' : `<div class="bubble-actions">
-            <button onclick="chatAction(${m.id},'react')" title="React">😊</button>
-            <button onclick="chatAction(${m.id},'reply')" title="Reply">↩</button>
-            <button onclick="chatAction(${m.id},'copy')" title="Copy">⧉</button>
-            ${mine ? `<button onclick="chatAction(${m.id},'edit')" title="Edit">✎</button><button onclick="chatAction(${m.id},'unsend')" title="Unsend">✕</button>` : ''}
-            <button onclick="chatAction(${m.id},'delete')" title="Delete for me">🗑</button>
-            <button onclick="chatAction(${m.id},'forward')" title="Forward">➤</button>
-            <button onclick="chatAction(${m.id},'report')" title="Report">🚩</button>
+            <button class="icon-btn" onclick="chatAction(${m.id},'react')" aria-label="React" title="React">${adaqIcon('react')}</button>
+            <button class="icon-btn" onclick="chatAction(${m.id},'reply')" aria-label="Reply" title="Reply">${adaqIcon('reply')}</button>
+            <button class="icon-btn" onclick="chatAction(${m.id},'copy')" aria-label="Copy" title="Copy">${adaqIcon('comment')}</button>
+            ${mine ? `<button class="icon-btn" onclick="chatAction(${m.id},'edit')" aria-label="Edit" title="Edit">${adaqIcon('edit')}</button><button class="icon-btn" onclick="chatAction(${m.id},'unsend')" aria-label="Unsend" title="Unsend">${adaqIcon('unsend')}</button>` : ''}
+            <button class="icon-btn" onclick="chatAction(${m.id},'delete')" aria-label="Delete for me" title="Delete for me">${adaqIcon('trash')}</button>
+            <button class="icon-btn" onclick="chatAction(${m.id},'forward')" aria-label="Forward" title="Forward">${adaqIcon('forward')}</button>
+            <button class="icon-btn" onclick="chatAction(${m.id},'report')" aria-label="Report" title="Report">${adaqIcon('report')}</button>
           </div>`}${reacts ? `<div class="reacts">${reacts}</div>` : ''}
           <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
         </div>`;
       }).join('') : '<div class="msg-day">No messages yet</div>'}</div><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
-      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">📎<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" title="Emoji">😊</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="return true"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
+      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" aria-label="Emoji" title="Emoji">${adaqIcon('react')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="return true"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
 }
