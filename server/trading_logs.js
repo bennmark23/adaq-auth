@@ -35,7 +35,7 @@ function registerRoutes(app, db, auth, requireRole) {
       ? ['coin','timeframe','side','entry','stop_loss','take_profit','size_usd','result','exit_price','pnl_pct','pnl_usd','quality','created_at','closed_at']
       : ['coin','timeframe','side','size_usd','entry','stop','take_profit','exit','result','pnl_pct','pnl_usd','close_reason','opened_at','closed_at'];
     const vals = cols.map(c => {
-      const v = e[c] !== undefined ? e[c] : null;
+      const v = e[c] !== undefined ? e[c] : (c === 'created_at' || c === 'opened_at' ? Date.now() : null);
       return typeof v === 'number' || typeof v === 'string' ? v : null;
     });
     const sets = cols.map(c => c + '=?').join(',');

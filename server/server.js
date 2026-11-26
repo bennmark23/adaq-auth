@@ -21,6 +21,9 @@ const { initScheduler } = require('./scheduler');
 const ds = require('./data_safety');
 
 const PORT = process.env.PORT || 4000;
+const MAX_FILE_MB = parseInt(process.env.MAX_FILE_MB || '5', 10) || 5;
+const MAX_VOICE_SECONDS = parseInt(process.env.MAX_VOICE_SECONDS || '120', 10) || 120;
+const MAX_FILES_DAY = parseInt(process.env.MAX_FILES_PER_DAY_PER_USER || '50', 10) || 50;
 const JWT_SECRET = process.env.JWT_SECRET || 'adaq-jwt-change-me-in-prod';
 const DATA_DIR = ds.resolveDataDir();
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -651,7 +654,26 @@ app.get('/api/presence', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v39' }));
+function pushNotify(userId, title, body) {
+  try {
+    const rows = db.prepare('SELECT * FROM push_subs WHERE user_id=?').all(userId);
+    for (const r of rows) {
+      // Native Web Push is implemented via the browser service worker in a later phase.
+      // Here we record the delivery intent without calling any third-party service.
+      db.prepare('INSERT INTO push_outbox (user_id,title,body,created_at) VALUES (?,?,?,?)').run(userId, title, body, Date.now());
+    }
+  } catch (e) {}
+}
+global.adaqPushNotify = pushNotify;
+app.post('/api/push/subscribe', auth, (req, res) => {
+  const sub = req.body && req.body.subscription;
+  db.exec('CREATE TABLE IF NOT EXISTS push_subs (user_id INTEGER, subscription TEXT, created_at INTEGER)');
+  if (!sub) return res.status(400).json({ error: 'No subscription' });
+  db.prepare('INSERT OR REPLACE INTO push_subs (user_id,subscription,created_at) VALUES (?,?,?)').run(req.user.id, String(JSON.stringify(sub)), Date.now());
+  res.json({ ok: true });
+});
+app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v40' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [

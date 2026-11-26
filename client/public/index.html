@@ -963,6 +963,7 @@ const BAD=['MANYUCOINUSDT','ZBCNUSDT','MANYUUSDT'];
 HS=HS.filter(h=>!BAD.includes(h.sym));SV('hist',HS);P.open=P.open.filter(t=>!BAD.includes(t.sym));P.closed=P.closed.filter(t=>!BAD.includes(t.sym));SV('paper',P);
 if(BAD.includes(S.sym)){S.sym='BTCUSDT';SV('sym','BTCUSDT')}
 renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=document.getElementById('pageTitle');if(p0)p0.textContent='Memes'}
+fetch('/api/config/limits',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}}).then(r=>r.json()).then(j=>{const v=document.getElementById('voiceMax');if(v)v.value=j.max_voice_seconds;const el=document.getElementById('uploadLimits');if(el)el.textContent='Max '+j.max_file_mb+' MB · voice up to '+j.max_voice_seconds+'s · images, PDF, TXT, DOCX'}).catch(()=>{});
 window.syncTradeLogs=syncTradeLogs;
 </script><link rel="stylesheet" href="auth.css">
 <div id="authOverlay" style="display:flex">
@@ -1060,8 +1061,9 @@ window.syncTradeLogs=syncTradeLogs;
   </div>
 </div></div>
 <div id="mediaViewer" class="modal hidden"><div class="sheet" style="max-width:92vw;text-align:center">
-  <button class="icon-btn" style="float:right" aria-label="Close" onclick="document.getElementById('mediaViewer').classList.add('hidden')">×</button>
-  <img id="mediaViewImg" src="" style="max-width:100%;max-height:80vh;border-radius:8px" alt="">
+  <button class="icon-btn" style="float:right" aria-label="Close" onclick="closeMedia()">×</button>
+  <div style="overflow:auto;max-height:78vh" id="mediaViewport"><img id="mediaViewImg" src="" style="max-width:100%;max-height:78vh;border-radius:8px;transform-origin:center" alt=""></div>
+  <div class="viewer-controls"><button class="btn btn-ghost" onclick="zoomMedia(-1)" aria-label="Zoom out">−</button><button class="btn btn-ghost" onclick="zoomMedia(1)" aria-label="Zoom in">+</button><button class="btn btn-ghost" onclick="downloadMedia()">Download</button></div>
 </div></div>
 <div id="adminModal" class="modal hidden"><div class="sheet ui-sheet">
   <div class="ui-head">
@@ -1167,6 +1169,7 @@ function switchAdminTab(t){
     <button onclick="openMeeting()" style="margin-top:8px">Open Meeting</button>
   </div>
 </section>
+<input type="hidden" id="voiceMax" value="120">
 <div id="msgBubble" aria-label="Messenger"></div>
 <script>(()=>{const s=document.getElementById('chatSettingsGlyph');if(s)s.innerHTML=adaqIcon('settings');document.querySelectorAll('.icon-btn').forEach(b=>{if(b.textContent.trim()==='×')b.innerHTML=adaqIcon('close')});})();</script>
 </body></html>

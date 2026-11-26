@@ -17,6 +17,20 @@ Full-stack account system for ADAQ: Google-Authenticator (TOTP) login, admin/sub
 - Send the link. The friend opens it, registers username/password, then enrolls their authenticator.
 - Sub-admin accounts can only be created via web (admin generates a sub-admin invite link).
 
+## Short user guide
+- Log in, then use the bottom icons to move between Chart, Markets, Memes, Feed, Training, Settings and Admin Features (admin only).
+- Tap the floating Messenger bubble on the right to chat. Drag it to either edge; its position is remembered.
+- In Feed you can read posts, react, comment, share, and see who is online at the top.
+- In Settings choose theme (Dark / Light / Auto), alerts, and Signal Target. Your trading logs are visible to the Administrator; private messages are not.
+- First-time login shows "Welcome Champ"; returning users see "Welcome back, [name]".
+
+## Short admin guide
+- Open **Admins Power** (shield) for Users, Activity, Invite, Announce, Messages, Admin Link.
+- In Users, tap a user's avatar to view their Signal entry log / Training log (read-only).
+- Mr. Admin Report (Reports tab) shows design reports from Mr. Designer: Accept or Reject, with revision history.
+- Messages tab lets you send one-way notices to one, several, or all users; users cannot reply.
+- Download a full backup from Admin's Features (admin-only, audit logged).
+
 ## Persistent storage (IMPORTANT)
 Hosts with an **ephemeral filesystem** (for example Render's free web service) erase all files on every deploy. ADAQ keeps every account, avatar, log, report and message in `ADAQ_DATA_DIR` — if that folder is not on a persistent disk, your data will be lost when you deploy code.
 

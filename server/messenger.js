@@ -3,8 +3,27 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const CHAT_UPLOADS = path.join(__dirname, 'data', 'chat_uploads');
+const DATA_DIR = require('./data_safety').resolveDataDir();
+const CHAT_UPLOADS = path.join(DATA_DIR, 'chat_uploads');
 if (!fs.existsSync(CHAT_UPLOADS)) fs.mkdirSync(CHAT_UPLOADS, { recursive: true });
+const MAX_FILE_MB = Math.max(1, Math.min(25, parseInt(process.env.MAX_FILE_MB || '5', 10) || 5));
+const MAX_VOICE_SECONDS = Math.max(10, Math.min(300, parseInt(process.env.MAX_VOICE_SECONDS || '120', 10) || 120));
+const MAX_FILES_DAY = Math.max(1, parseInt(process.env.MAX_FILES_PER_DAY_PER_USER || '50', 10) || 50);
+function fileKind(buf, mime) {
+  const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || '');
+  const hex = b.subarray(0, 8).toString('hex');
+  const s = b.subarray(0, 16).toString('latin1');
+  if (hex.startsWith('89504e470d0a1a0a')) return 'image/png';
+  if (hex.startsWith('ffd8ff')) return 'image/jpeg';
+  if (s.startsWith('RIFF') && s.slice(8, 12) === 'WEBP') return 'image/webp';
+  if (s.startsWith('GIF87a') || s.startsWith('GIF89a')) return 'image/gif';
+  if (s.startsWith('%PDF')) return 'application/pdf';
+  if (b.subarray(4, 8).toString('latin1') === 'ftyp') return 'audio/mp4';
+  if (hex.startsWith('1a45dfa3')) return 'audio/webm';
+  if (hex.startsWith('504b0304')) return b.includes(Buffer.from('word/document.xml')) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/zip';
+  if (mime === 'text/plain' && !b.subarray(0, 512).includes(0)) return 'text/plain';
+  return null;
+}
 const chatUpload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => cb(null, CHAT_UPLOADS),
@@ -13,9 +32,9 @@ const chatUpload = multer({
       cb(null, crypto.randomBytes(12).toString('hex') + ext);
     }
   }),
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /^(image\/|video\/|audio\/|text\/|application\/(pdf|msword|vnd\.openxmlformats-officedocument|zip|octet-stream))/.test(file.mimetype || '');
+    const ok = /^(image\/(png|jpeg|webp|gif)|audio\/(webm|mp4)|text\/plain|application\/(pdf|vnd\.openxmlformats-officedocument\.wordprocessingml\.document))/.test(file.mimetype || '');
     cb(ok ? null : new Error('Unsupported file type'), ok);
   }
 });
@@ -188,10 +207,22 @@ function emitChat(broadcast, db, convId, type, data) {
 function registerRoutes(app, db, auth, requireRole, broadcast) {
   const A = [auth];
   const adminOnly = [auth, requireRole('admin', 'subadmin')];
-  app.use('/chat_uploads', (req, res, next) => {
+  const jwt = require('jsonwebtoken');
+  const JWT_SECRET = process.env.JWT_SECRET || 'adaq-jwt-change-me-in-prod';
+  app.use('/chat_uploads', (req, res) => {
     const file = req.path.replace(/^\/+/, '');
-    if (!/^[a-f0-9]{24}\.[a-zA-Z0-9]{1,10}$/.test(file)) return res.status(400).end();
-    res.sendFile(path.join(CHAT_UPLOADS, file), err => { if (err && !res.headersSent) res.status(404).end(); });
+    if (!/^[a-f0-9]{24}\.[a-zA-Z0-9]{1,10}(?:_thumb\.jpg)?$/.test(file)) return res.status(400).end();
+    const token = (req.query.token || (req.headers.authorization || '').replace(/^Bearer\s+/, '') || '');
+    let user = null;
+    try { const p = jwt.verify(token, JWT_SECRET); user = db.prepare('SELECT id FROM users WHERE id=?').get(p.id); } catch (e) {}
+    if (!user) return res.status(401).end();
+    const a = db.prepare("SELECT a.*,m.conversation_id FROM chat_attachments a JOIN chat_messages m ON m.id=a.message_id WHERE a.path=?").get('/chat_uploads/' + file);
+    if (!a) return res.status(404).end();
+    try { assertConversationAccess(db, user.id, a.conversation_id); } catch (e) { return res.status(403).end(); }
+    res.set('x-content-type-options', 'nosniff');
+    res.type(a.mime || 'application/octet-stream');
+    if (req.query.download) res.set('content-disposition', 'attachment; filename="attachment"');
+    res.sendFile(path.join(CHAT_UPLOADS, file));
   });
   app.post('/api/chat/conversations/:id/media', ...A, chatUpload.single('file'), async (req, res) => {
     const id = Number(req.params.id);
@@ -199,8 +230,14 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     if (!rateOk(req.user.id)) return res.status(429).json({ error: 'Too many uploads. Slow down.' });
     if (!req.file) return res.status(400).json({ error: 'No file' });
     const f = req.file;
-    const mime = f.mimetype || '';
-    const kind = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'voice' : 'file';
+    const today = db.prepare('SELECT COUNT(*) c FROM chat_messages WHERE sender_id=? AND kind<>\'text\' AND created_at>?').get(req.user.id, Date.now() - 86400000).c;
+    if (today >= MAX_FILES_DAY) { try { fs.unlinkSync(f.path); } catch (e) {} return res.status(429).json({ error: 'Daily attachment limit reached' }); }
+    const fd = fs.openSync(f.path, 'r'); const head = Buffer.alloc(65536);
+    const read = fs.readSync(fd, head, 0, head.length, 0); fs.closeSync(fd);
+    const detected = fileKind(head.subarray(0, read), f.mimetype || '');
+    if (!detected || detected === 'application/zip') { try { fs.unlinkSync(f.path); } catch (e) {} return res.status(400).json({ error: 'File signature does not match an allowed type' }); }
+    const mime = detected;
+    const kind = mime.startsWith('image/') ? 'image' : mime.startsWith('audio/') ? 'voice' : 'file';
     const url = '/chat_uploads/' + f.filename;
     let thumb = '';
     if (kind === 'image') {
@@ -334,6 +371,7 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
       if (uid === req.user.id) continue;
       const total = db.prepare('SELECT COALESCE(SUM(unread_count),0) c FROM chat_members WHERE user_id=?').get(uid).c;
       broadcast('unread', { unread: total, to_user: uid, from_user: req.user.id, conversation_id: id });
+      if (global.adaqPushNotify && conv.kind !== 'admin_notice') global.adaqPushNotify(uid, 'New message', String(body || 'Attachment').slice(0, 80));
     }
     res.json({ message: msg });
   });
@@ -513,4 +551,4 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     res.json({ ok: true });
   });
 }
-module.exports = { SCHEMA, setup, isBotUsername, canSend, assertConversationAccess, isBlocked, registerRoutes };
+module.exports = { SCHEMA, setup, isBotUsername, canSend, assertConversationAccess, isBlocked, registerRoutes, fileKind, MAX_FILE_MB, MAX_VOICE_SECONDS, MAX_FILES_DAY };
