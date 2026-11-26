@@ -27,6 +27,8 @@ function authReady() { document.documentElement.classList.remove('adaq-auth-pend
 function setLoginGreeting() {
   const el = document.getElementById('loginGreeting');
   if (!el) return;
+  // The admin URL never uses the remembered user record (it belongs to the user account).
+  if (ADMIN_MODE) { el.textContent = 'Welcome Champ'; return; }
   const name = LAST_USER && typeof LAST_USER === 'object' ? String(LAST_USER.username || '').trim() : '';
   el.textContent = name && name !== 'admin' ? 'Welcome back, ' + name : 'Welcome Champ';
 }
