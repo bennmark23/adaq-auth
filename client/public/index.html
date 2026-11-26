@@ -891,7 +891,6 @@ function show(t,keep){
  document.body.classList.toggle('no-sticky-top',t==='nw');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
  if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}resetScroll(sameTab);}
-}
 $('#nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
 $('#sym').innerHTML=SYMS.map(s=>`<option>${s}</option>`).join('');$('#sym').value=S.sym;
 $('#sym').onchange=e=>{if(S.src==='gt'){const it=MU[+e.target.value];if(it)selectMeme(it);return}S.sym=e.target.value;SV('sym',S.sym);load();chg()};
@@ -1087,6 +1086,13 @@ window.syncTradeLogs=syncTradeLogs;
     <div id="pastAnnounceList"></div>
   </div>
   <div class="ui-body panel" id="adminTab_messages" style="display:none">
+    <div class="card" style="margin-bottom:10px"><b>Admin notice</b><br><small class="muted">One-way messages. Users cannot reply. Leave recipients blank to send to all users (confirmation required).</small>
+      <input id="noticeTo" placeholder="User IDs, comma separated (blank = all)" style="margin-top:6px">
+      <textarea id="noticeBody" rows="3" placeholder="Write a notice" style="margin-top:6px"></textarea>
+      <button class="btn btn-primary" style="margin-top:6px" onclick="sendAdminNotice()">Send notice</button>
+      <div id="noticeSent" style="margin-top:8px"></div>
+    </div>
+    <h4 class="section-title">Broadcast messages</h4>
     <div class="ui-field"><label for="msgTo">To user ID <small class="muted">· blank = broadcast</small></label><input id="msgTo" placeholder="User ID"></div>
     <div class="ui-field"><label for="msgEnc">Auto-delete</label><select id="msgEnc"><option value="">No auto-delete</option><option value="daily">After 1 day</option><option value="weekly">After 1 week</option><option value="monthly">After 1 month</option></select></div>
     <div class="ui-field"><label for="msgImg">Image <small class="muted">· optional</small></label><input type="file" id="msgImg"></div>
@@ -1113,7 +1119,7 @@ function switchAdminTab(t){
   });
   document.querySelectorAll('#adminModal .tabbar button').forEach((b,i)=>b.classList.toggle('on',['users','activity','invite','announce','messages','settings'][i]===t));
   if(t==='users'||t==='activity') loadAdmin();
-  if(t==='messages') loadMessages();
+  if(t==='messages'){loadMessages();loadAdminNotices()}
   if(t==='announce') loadPastAnnouncements();
   if(t==='settings') loadAdminPath();
   resetScroll();

@@ -628,7 +628,7 @@ app.get('/api/presence', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v36' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v37' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
@@ -663,7 +663,7 @@ app.use('/api/market', async (req, res) => {
 // Design approval flow (Mr. Designer -> Mr. Admin -> owner review)
 registerDesignRoutes(app, db, auth, requireRole, logActivity, broadcast);
 // In-house Messenger (own DB + own WebSocket)
-registerMessengerRoutes(app, db, auth, broadcast);
+registerMessengerRoutes(app, db, auth, requireRole, broadcast);
 // Per-user trading logs (admin-only read)
 registerLogRoutes(app, db, auth, requireRole);
 

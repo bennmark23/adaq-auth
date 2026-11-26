@@ -584,6 +584,31 @@ async function adminMessageUser(id) {
     if (r.conversation) openChat(r.conversation.id);
   } catch (e) { alert(e.message); }
 }
+async function sendAdminNotice() {
+  const to = document.getElementById('noticeTo').value.trim();
+  const body = document.getElementById('noticeBody').value.trim();
+  if (!body) { alert('Write a message first'); return; }
+  const all = !to;
+  if (all && !confirm('Send this notice to ALL users?')) return;
+  const recipient_ids = to ? to.split(',').map(s => Number(s.trim())).filter(Boolean) : [];
+  try {
+    await api('/chat/notices', { method: 'POST', body: { body, recipient_ids, all } });
+    document.getElementById('noticeBody').value = '';
+    loadAdminNotices();
+  } catch (e) { alert(e.message); }
+}
+async function loadAdminNotices() {
+  const el = document.getElementById('noticeSent');
+  if (!el) return;
+  try {
+    const r = await api('/chat/notices');
+    el.innerHTML = (r.notices || []).map(n => `<div class="msg-item"><small>${new Date(n.created_at).toLocaleString()}</small><br>${escapeHtml(n.body || '')}<br><small>Recipients: ${n.recipients.length} · Read: ${n.recipients.filter(x => x.read_at).length} · Delivered: ${n.recipients.filter(x => x.delivered_at).length}</small><br><button onclick="deleteAdminNotice(${n.id})" style="color:#ea3943">Delete for everyone</button></div>`).join('') || '<small>No notices sent.</small>';
+  } catch (e) { el.textContent = e.message; }
+}
+async function deleteAdminNotice(id) {
+  if (!confirm('Delete this notice for everyone?')) return;
+  try { await api('/chat/notices/' + id, { method: 'DELETE' }); loadAdminNotices(); } catch (e) { alert(e.message); }
+}
 async function createInvite() {
   const role = document.getElementById('inviteRole').value;
   try {
@@ -940,7 +965,7 @@ async function loadConversations() {
     const cs = r.conversations || [];
     el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}" onclick="openChat(${c.id})">
       <img src="${escapeHtml(c.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt="">
-      <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
+      <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}${c.kind === 'admin_notice' ? ' <span class="bot-tag">Admin</span>' : ''}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
       ${c.online ? '<i class="dot"></i>' : ''}${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
     </button>`).join('') : '<div class="msg-empty">No messages yet</div>';
   } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
@@ -981,7 +1006,7 @@ async function loadChatMessages(id) {
           <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
         </div>`;
       }).join('') : '<div class="msg-day">No messages yet</div>'}</div><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
-      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">📎<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" title="Emoji">😊</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : '<div class="msg-note">You can\'t reply to this account</div>'}`;
+      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">📎<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" title="Emoji">😊</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="return true"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
 }
@@ -1118,6 +1143,11 @@ window.addEventListener('adaq:chat', e => {
   if (t && t.type === 'chat_typing') {
     const note = document.getElementById('typingNote');
     if (note) { note.style.display = 'block'; clearTimeout(window.__typingHide); window.__typingHide = setTimeout(() => { note.style.display = 'none'; }, 2500); }
+  }
+  if (t && t.type === 'chat_deleted' && t.data && t.data.conversation_id === CHAT_ID) {
+    CHAT_ID = null;
+    const pane = document.getElementById('chatPane'); if (pane) pane.innerHTML = '<div class="msg-empty">No messages yet</div>';
+    loadConversations();
   }
   refreshUnread();
 });

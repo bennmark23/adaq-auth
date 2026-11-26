@@ -103,6 +103,13 @@ CREATE TABLE IF NOT EXISTS chat_reports (
   status TEXT NOT NULL DEFAULT 'new',
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS notice_recipients (
+  notice_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  delivered_at INTEGER,
+  read_at INTEGER,
+  PRIMARY KEY (notice_id, user_id)
+);
 CREATE INDEX IF NOT EXISTS idx_chat_conv_activity ON chat_conversations(last_message_at DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id, archived, deleted_for_me);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conv ON chat_messages(conversation_id, created_at DESC);
@@ -110,7 +117,10 @@ CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_chat_reads_msg ON chat_reads(message_id);
 CREATE INDEX IF NOT EXISTS idx_chat_attachments_msg ON chat_attachments(message_id);
 `;
-function setup(db) { db.exec(SCHEMA); }
+function setup(db) {
+  db.exec(SCHEMA);
+  try { db.exec("ALTER TABLE chat_conversations ADD COLUMN kind TEXT NOT NULL DEFAULT 'direct'"); } catch (e) {}
+}
 
 // Bots and the fixed admin identity are never Messenger participants.
 function isBotUsername(name) {
@@ -159,14 +169,14 @@ function publicMember(db, conv, meId) {
   const other = rows.find(r => r.user_id !== meId);
   const mine = rows.find(r => r.user_id === meId);
   return {
-    id: conv.id, type: conv.type, name: conv.type === 'group' ? conv.name : (other ? other.username : ''),
+    id: conv.id, type: conv.type, kind: conv.kind || 'direct', name: conv.type === 'group' ? conv.name : (other ? other.username : ''),
     avatar: conv.type === 'group' ? conv.avatar : (other ? other.avatar : ''),
     otherId: other ? other.user_id : null,
     pinned: !!(mine && mine.pinned), muted: !!(mine && mine.muted), archived: !!(mine && mine.archived),
     unread: mine ? mine.unread_count : 0,
     last_message_at: conv.last_message_at, last_message_preview: conv.last_message_preview,
     online: other ? (() => { const u = db.prepare('SELECT last_active FROM users WHERE id=?').get(other.user_id); return !!(u && Date.now() - (u.last_active || 0) < 90000); })() : false,
-    canReply: conv.type !== 'direct' || !other || (other.username !== 'admin' && !isBotUsername(other.username))
+    canReply: conv.kind !== 'admin_notice' && (conv.type !== 'direct' || !other || (other.username !== 'admin' && !isBotUsername(other.username)))
   };
 }
 function participantIds(db, convId) {
@@ -175,8 +185,9 @@ function participantIds(db, convId) {
 function emitChat(broadcast, db, convId, type, data) {
   if (broadcast) broadcast(type, data, uid => participantIds(db, convId).includes(uid));
 }
-function registerRoutes(app, db, auth, broadcast) {
+function registerRoutes(app, db, auth, requireRole, broadcast) {
   const A = [auth];
+  const adminOnly = [auth, requireRole('admin', 'subadmin')];
   app.use('/chat_uploads', (req, res, next) => {
     const file = req.path.replace(/^\/+/, '');
     if (!/^[a-f0-9]{24}\.[a-zA-Z0-9]{1,10}$/.test(file)) return res.status(400).end();
@@ -216,7 +227,7 @@ function registerRoutes(app, db, auth, broadcast) {
   });
   app.get('/api/chat/conversations', ...A, (req, res) => {
     const rows = db.prepare(`SELECT c.* FROM chat_conversations c JOIN chat_members m ON m.conversation_id=c.id
-      WHERE m.user_id=? AND m.deleted_for_me=0 ORDER BY COALESCE(c.last_message_at,c.created_at) DESC LIMIT 200`).all(req.user.id);
+      WHERE m.user_id=? AND m.deleted_for_me=0 ORDER BY m.pinned DESC, COALESCE(c.last_message_at,c.created_at) DESC LIMIT 200`).all(req.user.id);
     res.json({ conversations: rows.filter(c => req.query.archived ? db.prepare('SELECT archived FROM chat_members WHERE conversation_id=? AND user_id=?').get(c.id, req.user.id).archived : !db.prepare('SELECT archived FROM chat_members WHERE conversation_id=? AND user_id=?').get(c.id, req.user.id).archived).map(c => publicMember(db, c, req.user.id)) });
   });
   app.post('/api/chat/conversations', ...A, (req, res) => {
@@ -258,6 +269,8 @@ function registerRoutes(app, db, auth, broadcast) {
   app.post('/api/chat/conversations/:id/messages', ...A, (req, res) => {
     const id = Number(req.params.id);
     assertConversationAccess(db, req.user.id, id);
+    const conv = db.prepare('SELECT * FROM chat_conversations WHERE id=?').get(id);
+    if (conv.kind === 'admin_notice' && req.user.role !== 'admin') return res.status(403).json({ error: 'You are not allowed to reply the Admin' });
     if (!rateOk(req.user.id)) return res.status(429).json({ error: 'Too many messages. Slow down.' });
     const b = req.body || {};
     const body = String(b.body || '').trim().slice(0, 4000);
@@ -373,6 +386,50 @@ function registerRoutes(app, db, auth, broadcast) {
     db.prepare('INSERT INTO chat_reports (reporter_id,message_id,reason,created_at) VALUES (?,?,?,?)').run(req.user.id, m.id, String((req.body && req.body.reason) || '').slice(0, 500), Date.now());
     res.json({ ok: true });
   });
+  // Admin notice: one-way messages to one, several or all users.
+  app.post('/api/chat/notices', ...adminOnly, (req, res) => {
+    const b = req.body || {};
+    const body = String(b.body || '').trim().slice(0, 4000);
+    if (!body) return res.status(400).json({ error: 'Empty message' });
+    let ids = Array.isArray(b.recipient_ids) ? [...new Set(b.recipient_ids.map(Number))] : [];
+    if (b.all) ids = db.prepare("SELECT id FROM users WHERE role='user'").all().map(u => u.id);
+    ids = ids.filter(id => {
+      const u = db.prepare('SELECT * FROM users WHERE id=?').get(id);
+      return u && u.role === 'user';
+    });
+    if (!ids.length) return res.status(400).json({ error: 'Select at least one real user' });
+    const now = Date.now();
+    const info = db.prepare("INSERT INTO chat_conversations (type,kind,name,avatar,created_by,created_at,last_message_at,last_message_preview) VALUES ('direct','admin_notice','Admin','/icon-192.png',?,?,?,?)")
+      .run(req.user.id, now, now, body.slice(0, 120));
+    const id = Number(info.lastInsertRowid);
+    db.prepare('INSERT INTO chat_members (conversation_id,user_id,role,pinned,joined_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'admin', 1, now);
+    for (const uid of ids) {
+      db.prepare('INSERT INTO chat_members (conversation_id,user_id,role,pinned,joined_at) VALUES (?,?,?,?,?)').run(id, uid, 'member', 1, now);
+      db.prepare('INSERT INTO notice_recipients (notice_id,user_id,delivered_at) VALUES (?,?,?)').run(id, uid, now);
+    }
+    const m = db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, 'text', body, now);
+    for (const uid of ids) emitChat(broadcast, db, id, 'chat_message', { ...db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(m.lastInsertRowid)), to_user: uid });
+    res.json({ notice: { id, recipients: ids.length } });
+  });
+  app.get('/api/chat/notices', ...adminOnly, (req, res) => {
+    const rows = db.prepare("SELECT * FROM chat_conversations WHERE kind='admin_notice' ORDER BY created_at DESC LIMIT 100").all();
+    res.json({ notices: rows.map(c => ({
+      id: c.id, body: c.last_message_preview, created_at: c.created_at,
+      recipients: db.prepare('SELECT r.user_id,u.username,r.delivered_at,r.read_at FROM notice_recipients r LEFT JOIN users u ON u.id=r.user_id WHERE r.notice_id=?').all(c.id)
+    })) });
+  });
+  app.delete('/api/chat/notices/:id', ...adminOnly, (req, res) => {
+    const id = Number(req.params.id);
+    const c = db.prepare("SELECT * FROM chat_conversations WHERE id=? AND kind='admin_notice'").get(id);
+    if (!c) return res.status(404).json({ error: 'Not found' });
+    const ids = db.prepare('SELECT user_id FROM chat_members WHERE conversation_id=?').all(id).map(r => r.user_id);
+    for (const uid of ids) emitChat(broadcast, db, id, 'chat_deleted', { conversation_id: id, to_user: uid });
+    db.prepare('DELETE FROM chat_messages WHERE conversation_id=?').run(id);
+    db.prepare('DELETE FROM chat_members WHERE conversation_id=?').run(id);
+    db.prepare('DELETE FROM notice_recipients WHERE notice_id=?').run(id);
+    db.prepare('DELETE FROM chat_conversations WHERE id=?').run(id);
+    res.json({ ok: true });
+  });
   app.post('/api/chat/conversations/:id/typing', ...A, (req, res) => {
     const id = Number(req.params.id);
     assertConversationAccess(db, req.user.id, id);
@@ -399,6 +456,7 @@ function registerRoutes(app, db, auth, broadcast) {
   app.post('/api/chat/conversations/:id/block', ...A, (req, res) => {
     assertConversationAccess(db, req.user.id, Number(req.params.id));
     const c = db.prepare('SELECT * FROM chat_conversations WHERE id=?').get(Number(req.params.id));
+    if (c.kind === 'admin_notice') return res.status(403).json({ error: 'You cannot block the Administrator' });
     const other = db.prepare('SELECT user_id FROM chat_members WHERE conversation_id=? AND user_id<>?').get(c.id, req.user.id);
     if (!other) return res.status(400).json({ error: 'No other member' });
     db.prepare('INSERT OR REPLACE INTO chat_blocks (blocker_id,blocked_id,created_at) VALUES (?,?,?)').run(req.user.id, other.user_id, Date.now());
