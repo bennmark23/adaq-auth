@@ -1069,7 +1069,7 @@ async function loadChatMessages(id) {
     pane.innerHTML = `<div class="msg-head">
       <button class="icon-btn" onclick="closeChatView()" aria-label="Back to Messenger" title="Back">${adaqIcon('back')}</button>
       <span class="chat-peer"><img src="${escapeHtml(conv.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><i class="${conv.online ? 'on' : 'off'}"></i></span>
-      <b>${escapeHtml(conv.name || 'Conversation')}</b><small>${conv.online ? 'Online' : 'Offline'}</small>
+      <b>${escapeHtml(conv.name || 'Conversation')}</b><small>${conv.online ? 'Online' : 'Offline'}</small></div>
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
       <div class="msg-scroll" id="msgScroll">${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
       <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
