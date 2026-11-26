@@ -559,7 +559,7 @@ async function loadFriendStrip(){
     const users=(j.members||[]).filter(m=>m.type!=='bot' && m.id!==me);
     const bots=(j.members||[]).filter(m=>m.type==='bot');
     const members=[...users,...bots]; // users first, bots always at the end
-    const item=m=>`<button class="friend-item" ${m.type==='bot'?'data-bot="1"':'data-uid="'+(m.id||'').replace('u_','')+'"'} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<i class="dot ${m.online?'on':''}"></i></button>`;
+    const item=m=>`<button class="friend-item" ${m.type==='bot'?'data-bot="1"':'data-uid="'+(m.id||'').replace('u_','')+'"'} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<small class="presence ${m.online?'on':'off'}">${m.online?'Online':'Offline'}</small><i class="dot ${m.online?'on':''}"></i></button>`;
     s.innerHTML='<div class="track">'+(members.length ? members.map(item).join('') : '<small class="muted">No one online right now.</small>')+'</div>';
     // Manual horizontal scroll: drag with mouse on desktop, native finger scroll on APK.
     let dragging=false,x0=0,scroll0=0;
@@ -1021,7 +1021,7 @@ async function loadConversations() {
     el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}" onclick="openChat(${c.id})">
       <img src="${escapeHtml(c.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt="">
       <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}${c.kind === 'admin_notice' ? ' <span class="bot-tag">Admin</span>' : ''}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
-      ${c.online ? '<i class="dot"></i>' : ''}${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
+      ${c.online ? '<i class="dot"></i>' : ''}<span class="presence ${c.online ? 'on' : 'off'}">${c.online ? 'Online' : 'Offline'}</span>${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
     </button>`).join('') : '<div class="msg-empty">Look now for a conversation</div>';
   } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
 }

@@ -111,7 +111,7 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .friend-item .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--bg);margin-top:-12px;margin-left:34px;background:#8791a3}
 .friend-item .dot.on{background:#16c784}
 .friend-item .bot-tag{color:var(--icon-muted);font-size:8px;font-weight:700}
-.msg-layout{display:grid;grid-template-columns:minmax(150px,240px) 1fr;gap:10px;min-height:0;flex:1}
+.msg-layout{display:block;min-height:0;flex:1}
 .chat-full{display:none;flex-direction:column;min-height:0;flex:1}
 #messengerModal.chat-open .friend-strip,#messengerModal.chat-open .msg-layout{display:none}
 #messengerModal.chat-open .chat-full{display:flex}
@@ -124,6 +124,8 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .conv-item .meta small{display:block;color:var(--mu);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .conv-item .dot{width:8px;height:8px;border-radius:50%;background:#16c784;flex:none}
 .conv-item .unread{min-width:18px;height:18px;border-radius:9px;background:#ea3943;color:#fff;font-size:10px;display:inline-flex;align-items:center;justify-content:center}
+.presence{font-size:9px;color:var(--mu);flex:none}
+.presence.on{color:#16c784}.presence.off{color:#ea3943}
 .msg-thread{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .msg-empty{margin:auto;color:var(--mu);font-size:13px}
 .msg-head{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
