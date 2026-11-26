@@ -1278,6 +1278,7 @@ window.addEventListener('adaq:chat', e => {
     if (note) { note.style.display = 'block'; clearTimeout(window.__typingHide); window.__typingHide = setTimeout(() => { note.style.display = 'none'; }, 2500); }
   }
   if (t && t.type === 'presence') { loadFriendStrip(); loadConversations(); }
+  if (t && t.type === 'chat_read' && CHAT_ID) loadChatMessages(CHAT_ID);
   if (t && t.type === 'chat_deleted' && t.data && t.data.conversation_id === CHAT_ID) {
     closeChatView();
   }

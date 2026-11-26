@@ -632,9 +632,14 @@ async function ghBackupUploads() {
   if (!GH_UP_API || !GH_TOKEN) return;
   const archive = path.join(DATA_DIR, 'uploads.backup.tar.gz');
   try {
-    if (!fs.existsSync(UPLOADS) || !fs.readdirSync(UPLOADS).length) return;
+    const chatUp = path.join(DATA_DIR, 'chat_uploads');
+    const hasFiles = (fs.existsSync(UPLOADS) && fs.readdirSync(UPLOADS).length) || (fs.existsSync(chatUp) && fs.readdirSync(chatUp).length);
+    if (!hasFiles) return;
     if (fs.existsSync(archive)) fs.unlinkSync(archive);
-    try { execFileSync('tar', ['-czf', archive, '-C', DATA_DIR, 'uploads'], { stdio: 'ignore', timeout: 30000 }); }
+    const args = ['-czf', archive, '-C', DATA_DIR];
+    if (fs.existsSync(UPLOADS)) args.push('uploads');
+    if (fs.existsSync(chatUp)) args.push('chat_uploads');
+    try { execFileSync('tar', args, { stdio: 'ignore', timeout: 30000 }); }
     catch (e) { console.log('Uploads backup failed (tar):', e.message); return; }
     const content = fs.readFileSync(archive).toString('base64');
     if (!ghUploadsSha) {
@@ -691,6 +696,7 @@ function pushNotify(userId, title, body) {
   } catch (e) {}
 }
 global.adaqPushNotify = pushNotify;
+global.adaqBackupUploads = ghBackupUploads;
 app.post('/api/push/subscribe', auth, (req, res) => {
   const sub = req.body && req.body.subscription;
   db.exec('CREATE TABLE IF NOT EXISTS push_subs (user_id INTEGER, subscription TEXT, created_at INTEGER)');
@@ -699,7 +705,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v53' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v54' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [

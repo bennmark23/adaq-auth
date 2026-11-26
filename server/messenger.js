@@ -289,13 +289,17 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
       const att = db.prepare('SELECT * FROM chat_attachments WHERE message_id=?').get(m.id);
       return { ...m, reactions, attachment: att ? { path: att.path, thumbnail: att.thumbnail, name: att.name, kind: att.kind } : null };
     }).filter(Boolean);
+    const newlyRead = db.prepare('SELECT id,sender_id FROM chat_messages WHERE conversation_id=? AND id NOT IN (SELECT message_id FROM chat_reads WHERE user_id=?)').all(id, req.user.id);
     db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
+    for (const m of newlyRead) if (m.sender_id !== req.user.id) emitChat(broadcast, db, id, 'chat_read', { id: m.id, user_id: req.user.id });
     res.json({ messages: out.reverse() });
   });
   app.post('/api/messenger/read', ...A, (req, res) => {
     const id = Number(req.body && req.body.conversation_id || 0);
     assertConversationAccess(db, req.user.id, id);
+    const newlyRead = db.prepare('SELECT id,sender_id FROM chat_messages WHERE conversation_id=? AND id NOT IN (SELECT message_id FROM chat_reads WHERE user_id=?)').all(id, req.user.id);
     db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
+    for (const m of newlyRead) if (m.sender_id !== req.user.id) emitChat(broadcast, db, id, 'chat_read', { id: m.id, user_id: req.user.id });
     const total = db.prepare('SELECT COALESCE(SUM(unread_count),0) c FROM chat_members WHERE user_id=?').get(req.user.id).c;
     emitChat(broadcast, db, id, 'unread', { unread: total, to_user: req.user.id });
     res.json({ unread: total });
@@ -338,7 +342,9 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
       const seen = db.prepare('SELECT 1 FROM chat_reads WHERE message_id=? AND user_id<>? LIMIT 1').get(m.id, req.user.id);
       return { ...m, reactions, seen: !!seen, attachment: att ? { path: att.path, thumbnail: att.thumbnail, name: att.name, kind: att.kind, mime: att.mime } : null };
     }).filter(Boolean);
+    const newlyRead = db.prepare('SELECT id,sender_id FROM chat_messages WHERE conversation_id=? AND id NOT IN (SELECT message_id FROM chat_reads WHERE user_id=?)').all(id, req.user.id);
     db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
+    for (const m of newlyRead) if (m.sender_id !== req.user.id) emitChat(broadcast, db, id, 'chat_read', { id: m.id, user_id: req.user.id });
     db.prepare('INSERT OR REPLACE INTO chat_reads (message_id,user_id,read_at) SELECT id,?,? FROM chat_messages WHERE conversation_id=?').run(req.user.id, Date.now(), id);
     res.json({ messages: out.reverse() });
   });
@@ -367,6 +373,7 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     db.prepare('UPDATE chat_members SET unread_count=unread_count+1 WHERE conversation_id=? AND user_id<>?').run(id, req.user.id);
     const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(info.lastInsertRowid));
     emitChat(broadcast, db, id, 'chat_message', msg);
+    if (global.adaqBackupUploads) global.adaqBackupUploads();
     for (const uid of participantIds(db, id)) {
       if (uid === req.user.id) continue;
       const total = db.prepare('SELECT COALESCE(SUM(unread_count),0) c FROM chat_members WHERE user_id=?').get(uid).c;
