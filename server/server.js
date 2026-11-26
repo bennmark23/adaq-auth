@@ -251,7 +251,10 @@ wss.on('connection', (ws, req) => {
   if (!user) { ws.close(); return; }
   if (!clients.has(user.id)) clients.set(user.id, new Set());
   clients.get(user.id).add(ws);
-  ws.on('close', () => { const s = clients.get(user.id); if (s) { s.delete(ws); if (!s.size) clients.delete(user.id); } });
+  broadcast('presence', { user_id: user.id, online: true });
+  ws.on('close', () => {
+    const s = clients.get(user.id); if (s) { s.delete(ws); if (!s.size) { clients.delete(user.id); broadcast('presence', { user_id: user.id, online: false }); } }
+  });
   ws.send(JSON.stringify({ type: 'hello', userId: user.id }));
 });
 
@@ -648,7 +651,7 @@ app.get('/api/presence', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v38' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v39' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [

@@ -187,6 +187,7 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 </div>
 <script src="mqtt.min.js"></script>
 <script src="icons.js"></script>
+<script src="bubble.js"></script>
 <script>
 const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
@@ -1052,6 +1053,7 @@ window.syncTradeLogs=syncTradeLogs;
     <div style="display:flex;gap:6px"><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="createGroup()">+ Group</button><button class="icon-btn" aria-label="Messenger settings" title="Messenger settings" onclick="chatSettings()"><span id="chatSettingsGlyph"></span></button>
     <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden')">×</button></div>
   </div>
+  <div id="friendStrip" class="friend-strip" aria-label="People"></div>
   <div class="msg-layout">
     <div class="msg-inbox"><div id="convList"><small>Loading conversations...</small></div></div>
     <div class="msg-thread" id="chatPane"><div class="msg-empty">No messages yet</div></div>
@@ -1165,6 +1167,7 @@ function switchAdminTab(t){
     <button onclick="openMeeting()" style="margin-top:8px">Open Meeting</button>
   </div>
 </section>
+<div id="msgBubble" aria-label="Messenger"></div>
 <script>(()=>{const s=document.getElementById('chatSettingsGlyph');if(s)s.innerHTML=adaqIcon('settings');document.querySelectorAll('.icon-btn').forEach(b=>{if(b.textContent.trim()==='×')b.innerHTML=adaqIcon('close')});})();</script>
 </body></html>
 

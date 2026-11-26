@@ -244,7 +244,9 @@ async function afterLogin() {
   const adminNav = document.getElementById('adminNavBtn');
   if (adminNav) adminNav.style.display = USER.role === 'admin' ? '' : 'none';
   const msgIcon = document.getElementById('msgIconBtn');
-  if (msgIcon) msgIcon.style.display = USER.role === 'user' ? '' : 'none';
+  if (msgIcon) msgIcon.style.display = 'none';
+  try { sessionStorage.setItem('adaq_uid', String(USER.id)); } catch (e) {}
+  if (typeof window.initBubble === 'function') { window.initBubble(); window.updateBubble(); }
   if (USER.role === 'user') {
     refreshUnread();
     if (!window.__msgPoll) { window.__msgPoll = setInterval(() => { if (TOKEN) refreshUnread(); }, 15000); }
@@ -533,6 +535,27 @@ async function addDesignReport() {
 }
 
 // ---- Admin ----
+const GREETINGS=['Hello there!','Good to see you','Start something good','A fresh chat!','Say hi 👋','Let’s talk','Welcome in','New conversation','Make it count','Your space, your rules','Ready when you are','A little hello','Every chat starts somewhere','Tell me more','Let’s catch up','Good vibes only','Open the floor','First words matter','Make yourself at home','This is the beginning','Hi, friend','Let’s begin','A new chapter','Drop a line','Come on in'];
+function greetingFor(id){let g=sessionStorage.getItem('greet_'+id);if(!g){g=GREETINGS[Math.floor(Math.random()*GREETINGS.length)];sessionStorage.setItem('greet_'+id,g)}return g}
+async function loadFriendStrip(){
+  const s=document.getElementById('friendStrip');if(!s)return;
+  try{
+    const j=await (await fetch('/api/presence',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}})).json();
+    const members=(j.members||[]).filter(m=>m.type==='bot'||m.id!==('u_'+String((typeof USER!=='undefined'&&USER&&USER.id)||0)));
+    const item=m=>`<button class="friend-item" ${m.type==='bot'?'data-bot="1"':'data-uid="'+(m.id||'').replace('u_','')+'"'} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<i class="dot ${m.online?'on':''}"></i></button>`;
+    s.innerHTML='<div class="track">'+members.map(item).join('')+members.map(item).join('')+'</div>';
+    s.onscroll=()=>s.classList.add('paused');
+    s.ontouchstart=()=>s.classList.add('paused');
+    s.ontouchend=()=>setTimeout(()=>s.classList.remove('paused'),3000);
+    s.onclick=async e=>{
+      const b=e.target.closest('.friend-item');if(!b)return;
+      if(b.dataset.bot){alert('Bots cannot be messaged');return}
+      const uid=b.dataset.uid;if(!uid)return;
+      const r=await api('/chat/conversations',{method:'POST',body:{target_id:Number(uid)}});
+      if(r.conversation)openChat(r.conversation.id);
+    };
+  }catch(e){}
+}
 let LOG_USER = 0, LOG_KIND = 'signal';
 async function openUserProfile(id) {
   LOG_USER = Number(id);
@@ -957,7 +980,7 @@ async function refreshUnread() {
 }
 async function openMessenger() {
   document.getElementById('messengerModal').classList.remove('hidden');
-  await loadConversations();
+  await loadConversations(); loadFriendStrip();
   refreshUnread();
 }
 async function loadConversations() {
@@ -970,7 +993,7 @@ async function loadConversations() {
       <img src="${escapeHtml(c.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt="">
       <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}${c.kind === 'admin_notice' ? ' <span class="bot-tag">Admin</span>' : ''}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
       ${c.online ? '<i class="dot"></i>' : ''}${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
-    </button>`).join('') : '<div class="msg-empty">No messages yet</div>';
+    </button>`).join('') : '<div class="msg-empty">Look now for a conversation</div>';
   } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
 }
 async function openChat(id) {
@@ -1008,7 +1031,7 @@ async function loadChatMessages(id) {
           </div>`}${reacts ? `<div class="reacts">${reacts}</div>` : ''}
           <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
         </div>`;
-      }).join('') : '<div class="msg-day">No messages yet</div>'}</div><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
+      }).join('') : `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
       ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" aria-label="Emoji" title="Emoji">${adaqIcon('react')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="return true"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
@@ -1122,7 +1145,7 @@ async function sendChatMessage() {
     const payload = { body };
     if (REPLY_ID) { payload.reply_to = REPLY_ID; REPLY_ID = null; if (input) input.placeholder = 'Type a message'; }
     const r = await api('/chat/conversations/' + CHAT_ID + '/messages', { method: 'POST', body: payload });
-    if (r.message) { const sc = document.getElementById('msgScroll'); if (sc) sc.insertAdjacentHTML('beforeend', `<div class="bubble mine">${escapeHtml(r.message.body || '')}<small>${new Date(r.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`); if (sc) sc.scrollTop = sc.scrollHeight; }
+    if (r.message) { sessionStorage.removeItem('greet_' + CHAT_ID); const sc = document.getElementById('msgScroll'); if (sc) sc.insertAdjacentHTML('beforeend', `<div class="bubble mine">${escapeHtml(r.message.body || '')}<small>${new Date(r.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small></div>`); if (sc) sc.scrollTop = sc.scrollHeight; }
     loadConversations();
   } catch (e) {
     if (input) input.value = body;
@@ -1139,6 +1162,7 @@ window.addEventListener('online', async () => {
 window.addEventListener('adaq:chat', e => {
   const t = e.detail;
   if (t && t.type === 'chat_message' && t.data && t.data.conversation_id === CHAT_ID) {
+    sessionStorage.removeItem('greet_' + CHAT_ID);
     loadChatMessages(CHAT_ID);
     const st = LS('chat_settings', { sounds: true, online: true, receipts: true });
     if (st.sounds !== false) { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 720; o.start(); o.stop(a.currentTime + .12); } catch (x) {} }
@@ -1147,6 +1171,7 @@ window.addEventListener('adaq:chat', e => {
     const note = document.getElementById('typingNote');
     if (note) { note.style.display = 'block'; clearTimeout(window.__typingHide); window.__typingHide = setTimeout(() => { note.style.display = 'none'; }, 2500); }
   }
+  if (t && t.type === 'presence') { loadFriendStrip(); loadConversations(); }
   if (t && t.type === 'chat_deleted' && t.data && t.data.conversation_id === CHAT_ID) {
     CHAT_ID = null;
     const pane = document.getElementById('chatPane'); if (pane) pane.innerHTML = '<div class="msg-empty">No messages yet</div>';

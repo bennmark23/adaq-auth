@@ -230,6 +230,45 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
       WHERE m.user_id=? AND m.deleted_for_me=0 ORDER BY m.pinned DESC, COALESCE(c.last_message_at,c.created_at) DESC LIMIT 200`).all(req.user.id);
     res.json({ conversations: rows.filter(c => req.query.archived ? db.prepare('SELECT archived FROM chat_members WHERE conversation_id=? AND user_id=?').get(c.id, req.user.id).archived : !db.prepare('SELECT archived FROM chat_members WHERE conversation_id=? AND user_id=?').get(c.id, req.user.id).archived).map(c => publicMember(db, c, req.user.id)) });
   });
+  // Free-standing Messenger API aliases (same implementation as /api/chat).
+  app.get('/api/messenger/users', ...A, (req, res) => {
+    const users = db.prepare("SELECT id,username,avatar,last_active FROM users WHERE role='user' AND id<>? ORDER BY username").all(req.user.id)
+      .map(u => ({ id: u.id, name: u.username, avatar: u.avatar || '/default-avatar.svg', online: Date.now() - (u.last_active || 0) < 90000 }));
+    res.json({ users });
+  });
+  app.get('/api/messenger/conversations', ...A, (req, res) => {
+    const rows = db.prepare(`SELECT c.* FROM chat_conversations c JOIN chat_members m ON m.conversation_id=c.id
+      WHERE m.user_id=? AND m.deleted_for_me=0 ORDER BY m.pinned DESC, COALESCE(c.last_message_at,c.created_at) DESC LIMIT 200`).all(req.user.id);
+    res.json({ conversations: rows.map(c => publicMember(db, c, req.user.id)) });
+  });
+  app.get('/api/messenger/conversations/:id/messages', ...A, (req, res) => {
+    const id = Number(req.params.id);
+    assertConversationAccess(db, req.user.id, id);
+    const rows = db.prepare('SELECT * FROM chat_messages WHERE conversation_id=? AND id<? ORDER BY created_at DESC LIMIT 50')
+      .all(id, Number(req.query.before || Number.MAX_SAFE_INTEGER));
+    const out = rows.map(m => {
+      if (db.prepare('SELECT 1 FROM chat_message_deletes WHERE message_id=? AND user_id=?').get(m.id, req.user.id)) return null;
+      const reactions = db.prepare('SELECT emoji,COUNT(*) AS n FROM chat_reactions WHERE message_id=? GROUP BY emoji').all(m.id).map(r => ({ emoji: r.emoji, n: r.n }));
+      const att = db.prepare('SELECT * FROM chat_attachments WHERE message_id=?').get(m.id);
+      return { ...m, reactions, attachment: att ? { path: att.path, thumbnail: att.thumbnail, name: att.name, kind: att.kind } : null };
+    }).filter(Boolean);
+    db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
+    res.json({ messages: out.reverse() });
+  });
+  app.post('/api/messenger/read', ...A, (req, res) => {
+    const id = Number(req.body && req.body.conversation_id || 0);
+    assertConversationAccess(db, req.user.id, id);
+    db.prepare('UPDATE chat_members SET unread_count=0 WHERE conversation_id=? AND user_id=?').run(id, req.user.id);
+    const total = db.prepare('SELECT COALESCE(SUM(unread_count),0) c FROM chat_members WHERE user_id=?').get(req.user.id).c;
+    emitChat(broadcast, db, id, 'unread', { unread: total, to_user: req.user.id });
+    res.json({ unread: total });
+  });
+  app.post('/api/messenger/presence', ...A, (req, res) => {
+    db.prepare('UPDATE users SET last_active=? WHERE id=?').run(Date.now(), req.user.id);
+    if (broadcast) broadcast('presence', { user_id: req.user.id, online: true });
+    res.json({ ok: true });
+  });
+  // Rate limiting is shared with /api/chat (20 messages / 10s, already enforced).
   app.post('/api/chat/conversations', ...A, (req, res) => {
     const targetId = Number((req.body && req.body.target_id) || 0);
     const target = db.prepare('SELECT * FROM users WHERE id=?').get(targetId);
@@ -291,6 +330,11 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     db.prepare('UPDATE chat_members SET unread_count=unread_count+1 WHERE conversation_id=? AND user_id<>?').run(id, req.user.id);
     const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(info.lastInsertRowid));
     emitChat(broadcast, db, id, 'chat_message', msg);
+    for (const uid of participantIds(db, id)) {
+      if (uid === req.user.id) continue;
+      const total = db.prepare('SELECT COALESCE(SUM(unread_count),0) c FROM chat_members WHERE user_id=?').get(uid).c;
+      broadcast('unread', { unread: total, to_user: uid, from_user: req.user.id, conversation_id: id });
+    }
     res.json({ message: msg });
   });
   app.patch('/api/chat/messages/:id/edit', ...A, (req, res) => {

@@ -21,6 +21,14 @@
 nav button.on .icon,.btn-primary .icon{color:var(--icon-active)}
 .bubble-actions .icon{color:var(--icon-muted)}
 body{background:var(--bg);color:var(--tx)}
+#msgIconBtn{display:none!important}
+#msgBubble{position:fixed;right:14px;top:60%;width:56px;height:56px;border-radius:50%;background:var(--card);border:2px solid var(--icon-active);box-shadow:0 6px 18px #0007;z-index:85;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;transition:opacity .3s,left .25s,top .25s}
+#msgBubble.idle{opacity:.5}
+#msgBubble img{width:44px;height:44px;border-radius:50%;object-fit:cover}
+#msgBubble .icon{width:26px;height:26px;color:var(--icon-active)}
+.bubble-badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#ea3943;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center}
+@media(max-width:600px){#msgBubble{width:52px;height:52px}}
+@media(prefers-reduced-motion:reduce){#msgBubble{transition:none}}
 .card{background:var(--card);border:1px solid var(--bd)}
 button,select,input{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
 #app{max-width:960px;margin:0 auto}
@@ -91,6 +99,15 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .file-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 /* Messenger */
 .msg-sheet{max-width:900px;width:96vw;height:86vh}
+.friend-strip{display:flex;overflow:hidden;white-space:nowrap;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);touch-action:pan-x}
+.friend-strip .track{display:flex;gap:12px;animation:marquee 28s linear infinite}
+.friend-strip:hover .track,.friend-strip.paused .track{animation-play-state:paused}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.friend-item{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:52px;border:0;background:none;color:var(--tx);font-size:9px;cursor:pointer}
+.friend-item img{width:38px;height:38px;border-radius:50%;object-fit:cover;border:2px solid var(--bd)}
+.friend-item .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--bg);margin-top:-12px;margin-left:34px;background:#8791a3}
+.friend-item .dot.on{background:#16c784}
+.friend-item .bot-tag{color:var(--icon-muted);font-size:8px;font-weight:700}
 .msg-layout{display:grid;grid-template-columns:minmax(150px,240px) 1fr;gap:10px;min-height:0;flex:1}
 .msg-inbox{border-right:1px solid var(--bd);padding-right:8px;overflow:auto}
 .conv-item{display:flex;gap:8px;align-items:center;width:100%;padding:8px;border:0;border-radius:8px;background:none;color:var(--tx);text-align:left;cursor:pointer}
