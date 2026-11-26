@@ -1052,13 +1052,14 @@ window.syncTradeLogs=syncTradeLogs;
   <div class="ui-head">
     <div><h3 style="margin:0">Messenger</h3><small class="muted">Your private conversations</small></div>
     <div style="display:flex;gap:6px"><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="createGroup()">+ Group</button><button class="icon-btn" aria-label="Messenger settings" title="Messenger settings" onclick="chatSettings()"><span id="chatSettingsGlyph"></span></button>
-    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden')">×</button></div>
+    <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden');closeChatView()">×</button></div>
   </div>
   <div id="friendStrip" class="friend-strip" aria-label="People"></div>
   <div class="msg-layout">
     <div class="msg-inbox"><div id="convList"><small>Loading conversations...</small></div></div>
     <div class="msg-thread" id="chatPane"><div class="msg-empty">No messages yet</div></div>
   </div>
+  <div class="chat-full" id="chatFull"></div>
 </div></div>
 <div id="mediaViewer" class="modal hidden"><div class="sheet" style="max-width:92vw;text-align:center">
   <button class="icon-btn" style="float:right" aria-label="Close" onclick="closeMedia()">×</button>

@@ -1013,40 +1013,64 @@ async function loadConversations() {
 }
 async function openChat(id) {
   CHAT_ID = Number(id);
+  const modal = document.getElementById('messengerModal');
+  if (modal) modal.classList.add('chat-open');
   await loadChatMessages(CHAT_ID);
   loadConversations();
 }
+function closeChatView() {
+  CHAT_ID = null;
+  const modal = document.getElementById('messengerModal');
+  if (modal) modal.classList.remove('chat-open');
+  loadConversations();
+}
 async function loadChatMessages(id) {
-  const pane = document.getElementById('chatPane');
+  const pane = document.getElementById('chatFull');
   if (!pane) return;
   try {
     const r = await api('/chat/conversations/' + id + '/messages');
     const msgs = r.messages || [];
     const conv = ((await api('/chat/conversations')).conversations || []).find(c => c.id === Number(id)) || {};
     const canReply = conv.canReply !== false;
-    pane.innerHTML = `<div class="msg-head"><b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small>
-      <span style="margin-left:auto;display:flex;gap:4px"><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatBlockToggle(${conv.otherId||0})">Block</button><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatMute()">Mute</button>${conv.type === 'group' ? '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupManage()">Manage</button><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupLeave()">Leave</button>' : ''}</span></div>
+    let lastDay = '';
+    const list = msgs.map(m => {
+      const d = new Date(m.created_at);
+      const dayKey = d.toDateString();
+      let sep = '';
+      if (dayKey !== lastDay) {
+        lastDay = dayKey;
+        sep = `<div class="msg-day">${dayKey === new Date().toDateString() ? 'Today' : d.toLocaleDateString()}</div>`;
+      }
+      const mine = m.sender_id === (USER ? USER.id : 0);
+      const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
+      const reacts = (m.reactions || []).map(x => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(x.emoji)} ${x.n}</button>`).join('');
+      const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      const actions = m.deleted_for_everyone ? '' : `<div class="bubble-actions">
+        <button class="icon-btn" onclick="chatAction(${m.id},'react')" aria-label="React" title="React">${adaqIcon('react')}</button>
+        <button class="icon-btn" onclick="chatAction(${m.id},'reply')" aria-label="Reply" title="Reply">${adaqIcon('reply')}</button>
+        <button class="icon-btn" onclick="chatAction(${m.id},'copy')" aria-label="Copy" title="Copy">${adaqIcon('comment')}</button>
+        ${mine ? `<button class="icon-btn" onclick="chatAction(${m.id},'edit')" aria-label="Edit" title="Edit">${adaqIcon('edit')}</button><button class="icon-btn" onclick="chatAction(${m.id},'unsend')" aria-label="Unsend" title="Unsend">${adaqIcon('unsend')}</button>` : ''}
+        <button class="icon-btn" onclick="chatAction(${m.id},'delete')" aria-label="Delete for me" title="Delete for me">${adaqIcon('trash')}</button>
+        <button class="icon-btn" onclick="chatAction(${m.id},'forward')" aria-label="Forward" title="Forward">${adaqIcon('forward')}</button>
+        <button class="icon-btn" onclick="chatAction(${m.id},'report')" aria-label="Report" title="Report">${adaqIcon('report')}</button>
+      </div>`;
+      return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
+        <div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
+        ${actions}
+        <small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
+      </div>`;
+    }).join('');
+    pane.innerHTML = `<div class="msg-head">
+      <button class="icon-btn" onclick="closeChatView()" aria-label="Back to Messenger" title="Back">${adaqIcon('back')}</button>
+      <b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small>
+      <span style="margin-left:auto;display:flex;gap:4px">
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatBlockToggle(${conv.otherId||0})">Block</button>
+        <button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatMute()">Mute</button>
+        ${conv.type === 'group' ? '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupManage()">Manage</button><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupLeave()">Leave</button>' : ''}
+      </span></div>
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
-      <div class="msg-scroll" id="msgScroll"><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="chatLoadOlder()">Load older</button>${msgs.length ? msgs.map(m => {
-        const mine = m.sender_id === (USER ? USER.id : 0);
-        const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
-        const reacts = (m.reactions || []).map(r => `<button class="react" onclick="chatAction(${m.id},'react')">${escapeHtml(r.emoji)} ${r.n}</button>`).join('');
-        return `<div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">
-          ${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}
-          ${m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : ''}
-          ${body}${m.edited_at ? '<small>Edited</small>' : ''}
-          ${m.deleted_for_everyone ? '' : `<div class="bubble-actions">
-            <button class="icon-btn" onclick="chatAction(${m.id},'react')" aria-label="React" title="React">${adaqIcon('react')}</button>
-            <button class="icon-btn" onclick="chatAction(${m.id},'reply')" aria-label="Reply" title="Reply">${adaqIcon('reply')}</button>
-            <button class="icon-btn" onclick="chatAction(${m.id},'copy')" aria-label="Copy" title="Copy">${adaqIcon('comment')}</button>
-            ${mine ? `<button class="icon-btn" onclick="chatAction(${m.id},'edit')" aria-label="Edit" title="Edit">${adaqIcon('edit')}</button><button class="icon-btn" onclick="chatAction(${m.id},'unsend')" aria-label="Unsend" title="Unsend">${adaqIcon('unsend')}</button>` : ''}
-            <button class="icon-btn" onclick="chatAction(${m.id},'delete')" aria-label="Delete for me" title="Delete for me">${adaqIcon('trash')}</button>
-            <button class="icon-btn" onclick="chatAction(${m.id},'forward')" aria-label="Forward" title="Forward">${adaqIcon('forward')}</button>
-            <button class="icon-btn" onclick="chatAction(${m.id},'report')" aria-label="Report" title="Report">${adaqIcon('report')}</button>
-          </div>`}${reacts ? `<div class="reacts">${reacts}</div>` : ''}
-          <small>${new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
-        </div>`;
-      }).join('') : `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
+      <div class="msg-scroll" id="msgScroll"><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="chatLoadOlder()">Load older</button>${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
+      <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
       ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" aria-label="Emoji" title="Emoji">${adaqIcon('react')}</button><button class="btn btn-ghost" style="min-width:44px" id="micBtn" onclick="toggleVoice()" aria-label="Record voice" title="Record voice">${adaqIcon('mic')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="pasteImage(event)"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div><small class="muted" id="uploadLimits">Max ${Number(document.getElementById('voiceMax')?.value||5)} MB · voice up to 120s · images, PDF, TXT, DOCX</small>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
@@ -1086,7 +1110,7 @@ async function chatGroupManage() {
 }
 async function chatGroupLeave() {
   if (!confirm('Leave this group?')) return;
-  try { await api('/chat/groups/' + CHAT_ID, { method: 'PATCH', body: { leave: true } }); CHAT_ID = null; loadConversations(); document.getElementById('chatPane').innerHTML = '<div class="msg-empty">No messages yet</div>'; }
+  try { await api('/chat/groups/' + CHAT_ID, { method: 'PATCH', body: { leave: true } }); CHAT_ID = null; closeChatView(); }
   catch (e) { alert(e.message); }
 }
 async function chatLoadOlder() {
@@ -1247,9 +1271,7 @@ window.addEventListener('adaq:chat', e => {
   }
   if (t && t.type === 'presence') { loadFriendStrip(); loadConversations(); }
   if (t && t.type === 'chat_deleted' && t.data && t.data.conversation_id === CHAT_ID) {
-    CHAT_ID = null;
-    const pane = document.getElementById('chatPane'); if (pane) pane.innerHTML = '<div class="msg-empty">No messages yet</div>';
-    loadConversations();
+    closeChatView();
   }
   refreshUnread();
 });
