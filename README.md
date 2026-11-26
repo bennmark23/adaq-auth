@@ -17,6 +17,15 @@ Full-stack account system for ADAQ: Google-Authenticator (TOTP) login, admin/sub
 - Send the link. The friend opens it, registers username/password, then enrolls their authenticator.
 - Sub-admin accounts can only be created via web (admin generates a sub-admin invite link).
 
+## Persistent storage (IMPORTANT)
+Hosts with an **ephemeral filesystem** (for example Render's free web service) erase all files on every deploy. ADAQ keeps every account, avatar, log, report and message in `ADAQ_DATA_DIR` — if that folder is not on a persistent disk, your data will be lost when you deploy code.
+
+- Set `ADAQ_DATA_DIR` to a mounted persistent volume/disk path, never inside the code folder.
+- Free/self-hosted options: a VPS with a mounted volume, Docker with a named volume (`docker run -v adaq-data:/data ...`), or any host that offers a persistent disk.
+- Verify persistence: create a test account, redeploy, and confirm the account still exists. Admins can also download a full backup from Admin's Features.
+- If the database is ever missing while backups/uploads remain, ADAQ **refuses to start** rather than create a blank database. Restore the DB into `ADAQ_DATA_DIR/adaq.db` first.
+- See `RENDER_DB_BACKUP.md` for the optional free GitHub backup workaround.
+
 ## Deploy to a public URL (so friends can reach it from anywhere)
 Deploy the whole `adaq-auth` folder to any Node host (Render, Railway, Fly.io, VPS). Set env var `JWT_SECRET` to a long random string. The server serves the ADAQ client at `/`.
 

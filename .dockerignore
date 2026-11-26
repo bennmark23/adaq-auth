@@ -1,0 +1,12 @@
+node_modules
+.git
+data/
+DATA_DIR/
+backups/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.env
+.env.*
+!.env.example
+*.tar.gz

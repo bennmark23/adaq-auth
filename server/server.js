@@ -18,14 +18,17 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { registerBotApi } = require('./botapi');
 const { initScheduler } = require('./scheduler');
+const ds = require('./data_safety');
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'adaq-jwt-change-me-in-prod';
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = ds.resolveDataDir();
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 const UPLOADS = path.join(DATA_DIR, 'uploads');
 if (!fs.existsSync(UPLOADS)) fs.mkdirSync(UPLOADS, { recursive: true });
 const DB_PATH = path.join(DATA_DIR, 'adaq.db');
+// Optional staged restore (admin backup -> archive path) applied before any other startup logic.
+if (process.env.ADAQ_RESTORE_FROM) ds.extractArchive(DATA_DIR, process.env.ADAQ_RESTORE_FROM);
 
 // ---- Free persistent DB backup on GitHub (Render free tier has ephemeral disk) ----
 // Env: GH_BACKUP_TOKEN (PAT with repo access), GH_BACKUP_REPO (owner/repo),
@@ -93,7 +96,18 @@ function ghRestoreUploads() {
 ghRestore();
 ghRestoreUploads();
 
+// Never start with a blank database when data existed.
+let safeStart;
+try { safeStart = ds.assertSafeStart(DATA_DIR, DB_PATH); }
+catch (e) { console.error(e.message); process.exit(1); }
+const preMigrationBackup = ds.backupBeforeMigration(DATA_DIR, DB_PATH);
+
 const db = new DatabaseSync(DB_PATH);
+try { ds.runMigrations(db); }
+catch (e) {
+  if (preMigrationBackup && ds.restoreBackup(DB_PATH, preMigrationBackup)) console.error('Migration failed; restored backup:', preMigrationBackup);
+  console.error(e.message); process.exit(1);
+}
 db.exec(`
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,10 +181,16 @@ const { setup: setupLogs, registerRoutes: registerLogRoutes } = require('./tradi
 setupDesigns(db);
 setupMessenger(db);
 setupLogs(db);
+// One-time importer from earlier JSON storage (keeps data.json untouched).
+try { ds.importLegacyJson(db, DATA_DIR); } catch (e) { console.error('Legacy import failed:', e.message); }
 
-// seed admin
+// Seed ONLY for a brand-new database with an explicit flag; never reset an existing install.
 const adminRow = db.prepare('SELECT id FROM users WHERE username=?').get('admin');
 if (!adminRow) {
+  if (!safeStart.brandNew || process.env.ADAQ_SEED !== '1') {
+    console.error('ADAQ SAFETY STOP: no admin account exists. Set ADAQ_SEED=1 only for a brand-new database; will not auto-seed an existing install.');
+    process.exit(1);
+  }
   const hash = bcrypt.hashSync('123456', 10);
   db.prepare('INSERT INTO users (username,password_hash,role,password_must_change,created_at,theme,avatar) VALUES (?,?,?,?,?,?,?)')
     .run('admin', hash, 'admin', 1, Date.now(), 'dark', '/icon-192.png');
@@ -628,7 +648,7 @@ app.get('/api/presence', auth, (req, res) => {
 });
 
 // ---- Health check ----
-app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v37' }));
+app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v38' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
@@ -658,6 +678,28 @@ app.use('/api/market', async (req, res) => {
     if (ct) res.set('content-type', ct);
     res.send(text);
   } catch (e) { res.status(502).json({ error: 'Proxy error' }); }
+});
+
+// Admin data tools: download full backup and stage a restore (audit logged).
+app.get('/api/admin/backup', auth, requireRole('admin'), (req, res) => {
+  try {
+    const archive = ds.createArchive(DATA_DIR, DB_PATH);
+    logActivity(req.user.id, 'backup_download', path.basename(archive));
+    res.set('content-type', 'application/gzip');
+    res.set('content-disposition', 'attachment; filename="adaq-backup-' + ds.stamp() + '.tar.gz"');
+    const stream = fs.createReadStream(archive);
+    stream.pipe(res);
+    stream.on('close', () => { try { fs.unlinkSync(archive); } catch (e) {} });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/restore', auth, requireRole('admin'), upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file' });
+  const dest = path.join(ds.backupDir(DATA_DIR), 'restore-' + ds.stamp() + '.tar.gz');
+  fs.mkdirSync(ds.backupDir(DATA_DIR), { recursive: true });
+  fs.copyFileSync(req.file.path, dest);
+  try { fs.unlinkSync(req.file.path); } catch (e) {}
+  logActivity(req.user.id, 'restore_staged', path.basename(dest));
+  res.json({ ok: true, file: dest, restart_required: true, hint: 'Set ADAQ_RESTORE_FROM to this path and restart.' });
 });
 
 // Design approval flow (Mr. Designer -> Mr. Admin -> owner review)
