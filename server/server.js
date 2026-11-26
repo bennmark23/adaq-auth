@@ -191,7 +191,10 @@ try { ds.importLegacyJson(db, DATA_DIR); } catch (e) { console.error('Legacy imp
 const adminRow = db.prepare('SELECT id FROM users WHERE username=?').get('admin');
 if (!adminRow) {
   if (!safeStart.brandNew || process.env.ADAQ_SEED !== '1') {
-    console.error('ADAQ SAFETY STOP: no admin account exists. Set ADAQ_SEED=1 only for a brand-new database; will not auto-seed an existing install.');
+    console.error('ADAQ SAFETY STOP: no admin account exists. ' +
+      'For a brand-new database set ADAQ_SEED=1 and restart. ' +
+      'For an existing install, configure ADAQ_DATA_DIR on a persistent disk or set GH_BACKUP_TOKEN/GH_BACKUP_REPO to restore; ' +
+      'never delete DATA_DIR. Will not auto-seed an existing install.');
     process.exit(1);
   }
   const hash = bcrypt.hashSync('123456', 10);
@@ -677,7 +680,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v41' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v42' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
