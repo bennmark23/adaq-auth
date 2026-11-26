@@ -22,7 +22,8 @@ nav button.on .icon,.btn-primary .icon{color:var(--icon-active)}
 .bubble-actions .icon{color:var(--icon-muted)}
 body{background:var(--bg);color:var(--tx)}
 #msgIconBtn{display:none!important}
-#msgBubble{position:fixed;right:14px;top:60%;width:56px;height:56px;border-radius:50%;background:var(--card);border:2px solid var(--icon-active);box-shadow:0 6px 18px #0007;z-index:85;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;transition:opacity .3s,left .25s,top .25s}
+#msgBubble{position:fixed;right:14px;top:60%;width:56px;height:56px;border-radius:50%;background:var(--card);border:2px solid var(--icon-active);box-shadow:0 6px 18px #0007;z-index:85;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;transition:opacity .3s}
+#msgBubble.dragging{transition:none!important;cursor:grabbing}
 #msgBubble.idle{opacity:.5}
 #msgBubble img{width:44px;height:44px;border-radius:50%;object-fit:cover}
 #msgBubble .icon{width:26px;height:26px;color:var(--icon-active)}
@@ -124,6 +125,10 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .msg-head{display:flex;align-items:center;gap:8px;padding-bottom:8px;border-bottom:1px solid var(--bd)}
 .msg-head b{font-size:13px}
 .msg-head small{color:var(--mu);font-size:11px}
+.chat-peer{position:relative;display:inline-flex;flex:none}
+.chat-peer img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid var(--bd)}
+.chat-peer i{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--bg)}
+.chat-peer i.on{background:#16c784}.chat-peer i.off{background:#ea3943}
 .msg-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 2px;display:flex;flex-direction:column;gap:6px;min-height:0}
 .msg-wrap{display:flex;flex-direction:column;max-width:78%;align-self:flex-start;min-width:0}
 .msg-wrap.mine{align-self:flex-end;align-items:flex-end}

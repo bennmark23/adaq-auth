@@ -893,7 +893,7 @@ function show(t,keep){
  document.body.classList.toggle('no-sticky-top',t==='nw');
  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===(t==='chart'&&S.src==='gt'?'mm':t)));
  if(t==='chart'){requestAnimationFrame(draw);renderWE()}if(t==='mk')mk();if(t==='mm'){memes();renderWE();if(!WM.length&&!scanningM)scanMemes()}if(t==='nw')openNews();if(t==='tr'){$('#sym2').innerHTML=$('#sym').innerHTML;$('#sym2').value=S.sym;$('#tf2').value=S.tf;renderPos();requestAnimationFrame(draw);renderWE()}if(t==='admin'){if(!USER||USER.role!=='admin'){show('chart');return}try{switchAdminTab2('bots')}catch(e){console.error('switchAdminTab2 error:',e)}}resetScroll(sameTab);}
-$('#nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
+$('#nav').onclick=e=>{const b=e.target.closest('button[data-t]');if(b)show(b.dataset.t)};
 (()=>{const m={chart:'chart',mk:'markets',mm:'memes',nw:'feed',tr:'training',set:'settings',admin:'admin'};document.querySelectorAll('#nav button').forEach(b=>{b.innerHTML=adaqIcon(m[b.dataset.t]||'comment');b.classList.add('icon-btn')});document.querySelectorAll('.icon-btn').forEach(b=>{if(b.textContent.trim()==='×')b.innerHTML=adaqIcon('close')});(()=>{const g=document.getElementById('msgIconGlyph');if(g)g.innerHTML=adaqIcon('messenger');const s=document.getElementById('chatSettingsGlyph');if(s)s.innerHTML=adaqIcon('settings')})();})();
 $('#sym').innerHTML=SYMS.map(s=>`<option>${s}</option>`).join('');$('#sym').value=S.sym;
 $('#sym').onchange=e=>{if(S.src==='gt'){const it=MU[+e.target.value];if(it)selectMeme(it);return}S.sym=e.target.value;SV('sym',S.sym);load();chg()};
@@ -1051,12 +1051,11 @@ window.syncTradeLogs=syncTradeLogs;
 <div id="messengerModal" class="modal hidden"><div class="sheet ui-sheet msg-sheet">
   <div class="ui-head">
     <div><h3 style="margin:0">Messenger</h3><small class="muted">Your private conversations</small></div>
-    <div style="display:flex;gap:6px"><button class="btn btn-ghost" style="padding:6px 10px;font-size:11px" onclick="createGroup()">+ Group</button><button class="icon-btn" aria-label="Messenger settings" title="Messenger settings" onclick="chatSettings()"><span id="chatSettingsGlyph"></span></button>
     <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden');closeChatView()">×</button></div>
   </div>
   <div id="friendStrip" class="friend-strip" aria-label="People"></div>
   <div class="msg-layout">
-    <div class="msg-inbox"><div id="convList"><small>Loading conversations...</small></div></div>
+    <div class="msg-inbox"><h4 class="section-title">Chat List</h4><div id="convList"><small>Loading conversations...</small></div></div>
     <div class="msg-thread" id="chatPane"><div class="msg-empty">No messages yet</div></div>
   </div>
   <div class="chat-full" id="chatFull"></div>

@@ -18,7 +18,7 @@ function fileKind(buf, mime) {
   if (s.startsWith('RIFF') && s.slice(8, 12) === 'WEBP') return 'image/webp';
   if (s.startsWith('GIF87a') || s.startsWith('GIF89a')) return 'image/gif';
   if (s.startsWith('%PDF')) return 'application/pdf';
-  if (b.subarray(4, 8).toString('latin1') === 'ftyp') return 'audio/mp4';
+  if (b.subarray(4, 8).toString('latin1') === 'ftyp') return mime.startsWith('video/') ? 'video/mp4' : 'audio/mp4';
   if (hex.startsWith('1a45dfa3')) return 'audio/webm';
   if (hex.startsWith('504b0304')) return b.includes(Buffer.from('word/document.xml')) ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/zip';
   if (mime === 'text/plain' && !b.subarray(0, 512).includes(0)) return 'text/plain';
@@ -34,7 +34,7 @@ const chatUpload = multer({
   }),
   limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = /^(image\/(png|jpeg|webp|gif)|audio\/(webm|mp4)|text\/plain|application\/(pdf|vnd\.openxmlformats-officedocument\.wordprocessingml\.document))/.test(file.mimetype || '');
+    const ok = /^(image\/(png|jpeg|webp|gif)|(audio|video)\/(webm|mp4)|text\/plain|application\/(pdf|vnd\.openxmlformats-officedocument\.wordprocessingml\.document))/.test(file.mimetype || '');
     cb(ok ? null : new Error('Unsupported file type'), ok);
   }
 });
@@ -237,7 +237,7 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     const detected = fileKind(head.subarray(0, read), f.mimetype || '');
     if (!detected || detected === 'application/zip') { try { fs.unlinkSync(f.path); } catch (e) {} return res.status(400).json({ error: 'File signature does not match an allowed type' }); }
     const mime = detected;
-    const kind = mime.startsWith('image/') ? 'image' : mime.startsWith('audio/') ? 'voice' : 'file';
+    const kind = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'voice' : 'file';
     const url = '/chat_uploads/' + f.filename;
     let thumb = '';
     if (kind === 'image') {

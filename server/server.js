@@ -417,6 +417,8 @@ app.post('/api/profile/avatar', auth, upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
   const url = '/uploads/' + req.file.filename;
   db.prepare('UPDATE users SET avatar=? WHERE id=?').run(url, req.user.id);
+  // Back up immediately so a deploy right after changing an avatar never loses it.
+  if (typeof ghBackup === 'function') { ghBackup(); ghBackupUploads(); }
   res.json({ avatar: url });
 });
 
@@ -697,7 +699,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v47' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v48' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [

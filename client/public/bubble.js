@@ -34,6 +34,7 @@
   function onDown(e) {
     const b = el(); if (!b) return;
     dragging = true; moved = false; wake();
+    b.classList.add('dragging');
     x0 = e.clientX; y0 = e.clientY;
     const r = b.getBoundingClientRect(); bx = r.left; by = r.top;
     try { b.setPointerCapture && b.setPointerCapture(e.pointerId); } catch (err) {}
@@ -48,7 +49,7 @@
   function onUp(e) {
     if (!dragging) return;
     dragging = false;
-    const b = el(); try { b.releasePointerCapture && b.releasePointerCapture(e.pointerId); } catch (err) {}
+    const b = el(); b.classList.remove('dragging'); try { b.releasePointerCapture && b.releasePointerCapture(e.pointerId); } catch (err) {}
     if (moved) {
       const half = el().getBoundingClientRect().width / 2 || 28;
       const left = lastX + half < innerWidth / 2;
@@ -72,8 +73,9 @@
       const glyph = document.getElementById('bubbleGlyph');
       const last = (cs.conversations || []).find(c => c.unread > 0) || (cs.conversations || [])[0];
       if (unread > 0 && last) {
+        const n = Math.max(0, Number(last.unread || unread || 0));
         img.src = last.avatar || '/default-avatar.svg'; img.style.display = 'block'; glyph.style.display = 'none';
-        badge.style.display = 'flex'; badge.textContent = last.unread > 99 ? '99+' : String(last.unread);
+        badge.style.display = n > 0 ? 'flex' : 'none'; badge.textContent = n > 99 ? '99+' : String(n);
       } else {
         img.style.display = 'none'; glyph.style.display = 'block'; badge.style.display = 'none';
       }

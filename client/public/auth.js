@@ -555,12 +555,17 @@ async function loadFriendStrip(){
   const s=document.getElementById('friendStrip');if(!s)return;
   try{
     const j=await (await fetch('/api/presence',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}})).json();
-    const members=(j.members||[]).filter(m=>m.type==='bot'||m.id!==('u_'+String((typeof USER!=='undefined'&&USER&&USER.id)||0)));
+    const users=(j.members||[]).filter(m=>m.type!=='bot');
+    const bots=(j.members||[]).filter(m=>m.type==='bot');
+    const members=[...users,...bots]; // users first, bots always at the end
     const item=m=>`<button class="friend-item" ${m.type==='bot'?'data-bot="1"':'data-uid="'+(m.id||'').replace('u_','')+'"'} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<i class="dot ${m.online?'on':''}"></i></button>`;
-    s.innerHTML='<div class="track">'+members.map(item).join('')+members.map(item).join('')+'</div>';
-    s.onscroll=()=>s.classList.add('paused');
-    s.ontouchstart=()=>s.classList.add('paused');
-    s.ontouchend=()=>setTimeout(()=>s.classList.remove('paused'),3000);
+    s.innerHTML='<div class="track">'+members.map(item).join('')+'</div>';
+    // Manual horizontal scroll: drag with mouse on desktop, native finger scroll on APK.
+    let dragging=false,x0=0,scroll0=0;
+    s.onpointerdown=e=>{if(e.pointerType==='touch')return;dragging=true;x0=e.clientX;scroll0=s.scrollLeft;s.setPointerCapture&&s.setPointerCapture(e.pointerId)};
+    s.onpointermove=e=>{if(dragging)s.scrollLeft=scroll0-(e.clientX-x0)};
+    s.onpointerup=()=>dragging=false;
+    s.onpointercancel=()=>dragging=false;
     s.onclick=async e=>{
       const b=e.target.closest('.friend-item');if(!b)return;
       if(b.dataset.bot){alert('Bots cannot be messaged');return}
@@ -1017,12 +1022,14 @@ async function openChat(id) {
   if (modal) modal.classList.add('chat-open');
   await loadChatMessages(CHAT_ID);
   loadConversations();
+  if (typeof window.updateBubble === 'function') window.updateBubble();
 }
 function closeChatView() {
   CHAT_ID = null;
   const modal = document.getElementById('messengerModal');
   if (modal) modal.classList.remove('chat-open');
   loadConversations();
+  if (typeof window.updateBubble === 'function') window.updateBubble();
 }
 async function loadChatMessages(id) {
   const pane = document.getElementById('chatFull');
@@ -1044,7 +1051,7 @@ async function loadChatMessages(id) {
       const mine = m.sender_id === (USER ? USER.id : 0);
       const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
       const reacts = (m.reactions || []).map(x => `<span class="react">${escapeHtml(x.emoji)} ${x.n}</span>`).join('');
-      const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
       return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
         <div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
         <small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
@@ -1052,14 +1059,10 @@ async function loadChatMessages(id) {
     }).join('');
     pane.innerHTML = `<div class="msg-head">
       <button class="icon-btn" onclick="closeChatView()" aria-label="Back to Messenger" title="Back">${adaqIcon('back')}</button>
-      <b>${escapeHtml(conv.name || 'Conversation')}</b> <small>${conv.online ? 'Online' : 'Offline'}</small>
-      <span style="margin-left:auto;display:flex;gap:4px">
-        <button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatBlockToggle(${conv.otherId||0})">Block</button>
-        <button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatMute()">Mute</button>
-        ${conv.type === 'group' ? '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupManage()">Manage</button><button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="chatGroupLeave()">Leave</button>' : ''}
-      </span></div>
+      <span class="chat-peer"><img src="${escapeHtml(conv.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><i class="${conv.online ? 'on' : 'off'}"></i></span>
+      <b>${escapeHtml(conv.name || 'Conversation')}</b><small>${conv.online ? 'Online' : 'Offline'}</small>
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
-      <div class="msg-scroll" id="msgScroll"><button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="chatLoadOlder()">Load older</button>${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
+      <div class="msg-scroll" id="msgScroll">${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
       <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
       ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" aria-label="Emoji" title="Emoji">${adaqIcon('react')}</button><button class="btn btn-ghost" style="min-width:44px" id="micBtn" onclick="toggleVoice()" aria-label="Record voice" title="Record voice">${adaqIcon('mic')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="pasteImage(event)"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div><small class="muted" id="uploadLimits">Max ${Number(document.getElementById('voiceMax')?.value||5)} MB · voice up to 120s · images, PDF, TXT, DOCX</small>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
@@ -1258,8 +1261,8 @@ window.addEventListener('adaq:chat', e => {
   if (t && t.type === 'chat_message' && t.data && t.data.conversation_id === CHAT_ID) {
     sessionStorage.removeItem('greet_' + CHAT_ID);
     loadChatMessages(CHAT_ID);
-    const st = LS('chat_settings', { sounds: true, online: true, receipts: true });
-    if (st.sounds !== false) { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 720; o.start(); o.stop(a.currentTime + .12); } catch (x) {} }
+    const st = LS('chat_settings', { sounds: false, online: true, receipts: true });
+    if (st.sounds === true) { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 720; o.start(); o.stop(a.currentTime + .12); } catch (x) {} }
   }
   if (t && t.type === 'chat_typing') {
     const note = document.getElementById('typingNote');
