@@ -552,6 +552,31 @@ async function addDesignReport() {
 function fileUrl(p){return p+(p.indexOf('?')>=0?'&':'?')+'token='+encodeURIComponent(sessionStorage.getItem('adaq_token')||'')}
 const GREETINGS=['Hello there!','Good to see you','Start something good','A fresh chat!','Say hi 👋','Let’s talk','Welcome in','New conversation','Make it count','Your space, your rules','Ready when you are','A little hello','Every chat starts somewhere','Tell me more','Let’s catch up','Good vibes only','Open the floor','First words matter','Make yourself at home','This is the beginning','Hi, friend','Let’s begin','A new chapter','Drop a line','Come on in'];
 function greetingFor(id){let g=sessionStorage.getItem('greet_'+id);if(!g){g=GREETINGS[Math.floor(Math.random()*GREETINGS.length)];sessionStorage.setItem('greet_'+id,g)}return g}
+// Instant visual update from a WebSocket presence event, before the API refresh lands.
+function applyPresence(userId, online) {
+  const id = Number(userId) || 0;
+  const setLabel = (el, on) => {
+    if (!el) return;
+    el.textContent = on ? 'Online' : 'Offline';
+    el.classList.toggle('on', !!on);
+    el.classList.toggle('off', !on);
+  };
+  document.querySelectorAll('.friend-item[data-uid="' + id + '"]').forEach(el => {
+    setLabel(el.querySelector('.presence'), online);
+    const dot = el.querySelector('.dot'); if (dot) dot.classList.toggle('on', !!online);
+  });
+  document.querySelectorAll('.conv-item[data-uid="' + id + '"]').forEach(el => {
+    setLabel(el.querySelector('.presence'), online);
+    const dot = el.querySelector('.dot');
+    if (online) { if (!dot) el.insertAdjacentHTML('beforeend', '<i class="dot"></i>'); }
+    else if (dot) dot.remove();
+  });
+  const peer = document.querySelector('.chat-peer[data-uid="' + id + '"]');
+  if (peer) {
+    const dot = peer.querySelector('i'); if (dot) dot.className = online ? 'on' : 'off';
+    const status = document.querySelector('.msg-head > small'); if (status) status.textContent = online ? 'Online' : 'Offline';
+  }
+}
 async function loadFriendStrip(){
   const s=document.getElementById('friendStrip');if(!s)return;
   try{
@@ -564,7 +589,9 @@ async function loadFriendStrip(){
       const attr=m.type==='admin'?'data-admin="1"':(m.type==='bot'?'data-bot="1"':'data-uid="'+String(m.id||'').replace('u_','')+'"');
       return `<button class="friend-item" ${attr} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<small class="presence ${m.online?'on':'off'}">${m.online?'Online':'Offline'}</small><i class="dot ${m.online?'on':''}"></i></button>`;
     };
+    const keepScroll = s.scrollLeft;
     s.innerHTML='<div class="track">'+(members.length ? members.map(item).join('') : '<small class="muted">No one here yet.</small>')+'</div>';
+    s.scrollLeft = keepScroll;
     // Manual horizontal scroll: drag with mouse on desktop, native finger scroll on APK.
     // No pointer capture: it can retarget the click to the strip and break profile taps.
     let dragging=false,moved=false,x0=0,scroll0=0,downItem=null;
@@ -724,6 +751,11 @@ function connectWS() {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.type === 'announcement') { loadAnnouncements(); }
     if (m.type === 'message') { loadMessages(); }
+    if (m.type === 'presence' && m.data) {
+      applyPresence(m.data.user_id, m.data.online);
+      loadFriendStrip();
+      loadConversations();
+    }
     if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read' || m.type === 'unread' || m.type === 'chat_updated' || m.type === 'chat_deleted') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
   };
   ws.onclose = () => { if (TOKEN && !leaving) setTimeout(connectWS, 3000); };
@@ -1057,7 +1089,7 @@ async function loadConversations() {
   try {
     const r = await api('/chat/conversations');
     const cs = r.conversations || [];
-    el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}" onclick="openChat(${c.id})">
+    el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}" data-uid="${c.otherId || ''}" onclick="openChat(${c.id})">
       <img src="${escapeHtml(c.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt="">
       <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}${c.kind === 'admin_notice' ? ' <span class="bot-tag">Admin</span>' : ''}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
       ${c.online ? '<i class="dot"></i>' : ''}<span class="presence ${c.online ? 'on' : 'off'}">${c.online ? 'Online' : 'Offline'}</span>${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
@@ -1117,7 +1149,7 @@ async function loadChatMessages(id) {
     }).join('');
     pane.innerHTML = `<div class="msg-head">
       <button class="icon-btn" onclick="closeChatView()" aria-label="Back to Messenger" title="Back">${adaqIcon('back')}</button>
-      <span class="chat-peer"><img src="${escapeHtml(conv.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><i class="${conv.online ? 'on' : 'off'}"></i></span>
+      <span class="chat-peer" data-uid="${conv.otherId || ''}"><img src="${escapeHtml(conv.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><i class="${conv.online ? 'on' : 'off'}"></i></span>
       <b>${escapeHtml(conv.name || 'Conversation')}</b><small>${conv.online ? 'Online' : 'Offline'}</small></div>
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
       <div class="msg-scroll" id="msgScroll">${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
