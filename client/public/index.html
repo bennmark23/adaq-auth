@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>ADAQ</title>
-<!-- VERSION: 2026-11-24-v5 -->
+<!-- VERSION: 2026-11-25-v57 -->
 <style>
 :root{--bg:#0b0e14;--card:#141a24;--bd:#232c3b;--tx:#e6e9ef;--mu:#8791a3;--g:#16c784;--r:#ea3943;--b:#3b82f6;--y:#f5a524}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -188,8 +188,8 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 <nav id="nav"><button data-t="chart" class="on" title="Chart" aria-label="Chart"></button><button data-t="mk" title="Markets" aria-label="Markets"></button><button data-t="mm" title="Memes" aria-label="Memes"></button><button data-t="nw" title="Feed" aria-label="Feed"></button><button data-t="tr" title="Training" aria-label="Training"></button><button data-t="set" title="Settings" aria-label="Settings"></button><button data-t="admin" id="adminNavBtn" style="display:none" title="Admin Features" aria-label="Admin Features"></button></nav>
 </div>
 <script src="mqtt.min.js"></script>
-<script src="icons.js?v=50"></script>
-<script src="bubble.js?v=50"></script>
+<script src="icons.js?v=57"></script>
+<script src="bubble.js?v=57"></script>
 <script>
 const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
@@ -823,21 +823,21 @@ async function pushLog(kind, e) {
 }
 function syncTradeLogs() {
   if (!USER || USER.role !== 'user') return;
-  HS.slice(0, 50).forEach(h => pushLog('signal', {
-    id: h.id, coin: h.sym, timeframe: h.tf, side: h.side > 0 ? 'Long' : 'Short',
+  HS.slice(0, 50).forEach((h, i) => pushLog('signal', {
+    id: h.id || ('hist-' + i), coin: h.sym, timeframe: h.tf, side: h.side > 0 ? 'Long' : 'Short',
     entry: h.en, stop_loss: h.sl, take_profit: h.tp, size_usd: h.sz,
     result: h.out, exit_price: h.xp || null,
     pnl_pct: h.xp ? Math.round((h.side * (h.xp - h.en) / h.en * 100) * 100) / 100 : null,
     pnl_usd: h.xp ? Math.round(h.side * (h.xp - h.en) * (h.sz / h.en) * 100) / 100 : null,
-    quality: h.q || 0, created_at: h.t, closed_at: h.xt || null
+    quality: h.q || 0, created_at: h.t || Date.now(), closed_at: h.xt || null
   }));
-  P.open.concat(P.closed).slice(0, 50).forEach(t => pushLog('training', {
-    id: t.id, coin: t.sym, timeframe: t.tf, side: t.side > 0 ? 'Long' : 'Short',
+  P.open.concat(P.closed).slice(0, 50).forEach((t, i) => pushLog('training', {
+    id: t.id || ('paper-' + i), coin: t.sym, timeframe: t.tf, side: t.side > 0 ? 'Long' : 'Short',
     size_usd: t.sz, entry: t.en, stop: t.sl, take_profit: t.tp, exit: t.ex || null,
     result: t.ex ? (t.why === 'Stop hit' ? 'sl' : t.why === 'Target hit' ? 'tp' : 'closed') : 'open',
     pnl_pct: t.ex ? Math.round((t.pnl / (t.en * t.q) * 100) * 100) / 100 : null,
     pnl_usd: t.ex ? Math.round(t.pnl * 100) / 100 : null,
-    close_reason: t.why || '', opened_at: t.t, closed_at: t.xt || null
+    close_reason: t.why || '', opened_at: t.t || Date.now(), closed_at: t.xt || null
   }));
 }
 function msg(t){$('#tmsg').textContent=t}
@@ -969,7 +969,7 @@ if(BAD.includes(S.sym)){S.sym='BTCUSDT';SV('sym','BTCUSDT')}
 renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=document.getElementById('pageTitle');if(p0)p0.textContent='Memes'}
 fetch('/api/config/limits',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}}).then(r=>r.json()).then(j=>{window.ADAQ_LIMITS=j;const v=document.getElementById('voiceMax');if(v)v.value=j.max_voice_seconds;const el=document.getElementById('uploadLimits');if(el)el.textContent='Max '+j.max_file_mb+' MB · voice up to '+j.max_voice_seconds+'s · images, PDF, TXT, DOCX'}).catch(()=>{});
 window.syncTradeLogs=syncTradeLogs;
-</script><link rel="stylesheet" href="auth.css?v=50">
+</script><link rel="stylesheet" href="auth.css?v=57">
 <div id="authOverlay" style="display:flex">
   <div class="card" id="loginBox">
     <div style="text-align:center;margin-bottom:8px">
@@ -1135,7 +1135,7 @@ function switchAdminTab(t){
   resetScroll();
 }
 </script>
-<script src="auth.js?v=50"></script>
+<script src="auth.js?v=57"></script>
 <section id="v-admin" hidden>
   <div class="tabbar">
     <button class="on" onclick="switchAdminTab2('bots')">Bots</button>

@@ -31,17 +31,33 @@ function setup(db) { db.exec(SCHEMA); }
 function registerRoutes(app, db, auth, requireRole) {
   const A = [auth];
   const upsert = (table, uid, e) => {
-    const cols = table === 'signal_logs'
+    const isSignal = table === 'signal_logs';
+    const cols = isSignal
       ? ['coin','timeframe','side','entry','stop_loss','take_profit','size_usd','result','exit_price','pnl_pct','pnl_usd','quality','created_at','closed_at']
       : ['coin','timeframe','side','size_usd','entry','stop','take_profit','exit','result','pnl_pct','pnl_usd','close_reason','opened_at','closed_at'];
+    const timeCol = isSignal ? 'created_at' : 'opened_at';
+    const entryId = String(e.id || e.entry_id || '');
+    // Keep the original timestamp on retries; old/local entries may have no time at all.
+    const existing = db.prepare(`SELECT ${timeCol} FROM ${table} WHERE user_id=? AND entry_id=?`).get(uid, entryId);
+    const numeric = cols.filter(c => !['coin','timeframe','side','result','close_reason',timeCol,'closed_at'].includes(c));
     const vals = cols.map(c => {
-      const v = e[c] !== undefined ? e[c] : (c === 'created_at' || c === 'opened_at' ? Date.now() : null);
-      return typeof v === 'number' || typeof v === 'string' ? v : null;
+      const v = e[c];
+      if (c === timeCol) {
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? n : ((existing && existing[timeCol]) || Date.now());
+      }
+      if (c === 'closed_at') { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; }
+      if (c === 'result') return typeof v === 'string' && v ? v : 'open';
+      if (numeric.includes(c)) {
+        if (v === null || v === undefined || v === '') return null;
+        const n = Number(v); return Number.isFinite(n) ? n : null;
+      }
+      return typeof v === 'string' && v ? v : null;
     });
-    const sets = cols.map(c => c + '=?').join(',');
+    const sets = cols.map(c => c + '=excluded.' + c).join(',');
     db.prepare(`INSERT INTO ${table} (user_id,entry_id,${cols.join(',')},updated_at) VALUES (?,?,${cols.map(() => '?').join(',')},?)
       ON CONFLICT(user_id,entry_id) DO UPDATE SET ${sets},updated_at=excluded.updated_at`)
-      .run(uid, String(e.id || e.entry_id || ''), ...vals, Date.now());
+      .run(uid, entryId, ...vals, Date.now());
   };
   app.post('/api/logs/signal', ...A, (req, res) => {
     const e = (req.body && req.body.entry) || {};
