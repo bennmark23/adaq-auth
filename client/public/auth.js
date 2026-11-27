@@ -279,9 +279,7 @@ async function afterLogin() {
   // presence heartbeat
   setInterval(() => { api('/activity', { method: 'POST', body: { action: 'heartbeat' } }).catch(() => {}); }, 30000);
   if (typeof window.syncTradeLogs === 'function') window.syncTradeLogs();
-  try {
-    if (!LS('privacy_notice_seen', false)) { SV('privacy_notice_seen', true); if (USER.role === 'user') alert('Privacy notice: the Administrator can see your signal entry and training logs only. Your private messages are never visible to the Administrator.'); }
-  } catch (e) {}
+  try { SV('privacy_notice_seen', true); } catch (e) {}
 }
 
 function logout() {
@@ -572,7 +570,16 @@ async function loadFriendStrip(){
     s.onclick=async e=>{
       const b=e.target.closest('.friend-item');if(!b)return;
       if(b.dataset.bot){alert('You cannot message a bot');return}
-      if(b.dataset.admin){await openMessenger();showMsgNotice('You are not allowed to reply the Admin');return}
+      if(b.dataset.admin){
+        await openMessenger();
+        try {
+          const r = await api('/chat/conversations');
+          const adminConv = (r.conversations || []).find(c => c.kind === 'admin_notice');
+          if (adminConv) openChat(adminConv.id);
+        } catch (err) {}
+        showMsgNotice('You are not allowed to reply the Admin');
+        return;
+      }
       const uid=b.dataset.uid;if(!uid)return;
       try {
         const r=await api('/chat/conversations',{method:'POST',body:{target_id:Number(uid)}});
@@ -1010,6 +1017,7 @@ async function openMessenger() {
     modal.classList.remove('chat-open'); // always start at the list, never a stale chat
     const full = document.getElementById('chatFull'); if (full) full.innerHTML = '';
   }
+  clearPendingAttachment();
   CHAT_ID = null;
   document.getElementById('messengerModal').classList.remove('hidden');
   await loadConversations(); loadFriendStrip();
@@ -1034,6 +1042,7 @@ async function openChat(id) {
   if (modal) modal.classList.add('chat-open');
   const pane = document.getElementById('chatFull');
   if (pane) pane.innerHTML = '<div class="msg-note">Loading...</div>'; // never flash the previous chat
+  clearPendingAttachment();
   await loadChatMessages(CHAT_ID);
   loadConversations();
   if (typeof window.updateBubble === 'function') window.updateBubble();
@@ -1070,10 +1079,11 @@ async function loadChatMessages(id) {
       // Attachments never render the stored body (legacy rows contain the raw upload path).
       const body = deleted ? `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>` : (m.attachment ? '' : escapeHtml(m.body || ''));
       const reacts = (m.reactions || []).map(x => `<span class="react">${escapeHtml(x.emoji)} ${x.n}</span>`).join('');
-      const media = !deleted && m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onerror="chatImgError(this,'${escapeHtml(m.attachment.path)}')" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="Image attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
-      const menu = (mine && !deleted) ? `<button type="button" class="msg-menu" aria-label="Message options" onclick="toggleMsgMenu(event,${m.id})">${adaqIcon('dots')}</button>` : '';
+      // Keep attachments available even when the message text is deleted.
+      const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onerror="chatImgError(this,'${escapeHtml(m.attachment.path)}')" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="Image attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      const menu = (mine && !deleted) ? `<span class="menu-holder"><button type="button" class="msg-menu" aria-label="Message options" onclick="toggleMsgMenu(event,${m.id})">${adaqIcon('dots')}</button></span>` : '';
       return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
-        <div class="bubble ${mine ? 'mine' : ''}${media ? ' has-media' : ''}" data-id="${m.id}">${menu}${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at && !deleted ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
+        <div class="msg-line">${menu}<div class="bubble ${mine ? 'mine' : ''}${media ? ' has-media' : ''}" data-id="${m.id}">${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at && !deleted ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div></div>
         <small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
       </div>`;
     }).join('');
@@ -1084,7 +1094,7 @@ async function loadChatMessages(id) {
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
       <div class="msg-scroll" id="msgScroll">${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
       <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
-      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" id="micBtn" onclick="toggleVoice()" aria-label="Record voice" title="Record voice">${adaqIcon('mic')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="pasteImage(event)"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div><small class="muted" id="uploadLimits">Max ${window.ADAQ_LIMITS ? window.ADAQ_LIMITS.max_file_mb : 5} MB · voice up to 120s · images, PDF, TXT, DOCX</small>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
+      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="prepareChatFile()" accept="image/png,image/jpeg,image/webp,image/gif,video/mp4,video/webm,audio/mp4,audio/webm,.pdf,.txt,.docx"></label><button class="btn btn-ghost" style="min-width:44px" id="micBtn" onclick="toggleVoice()" aria-label="Record voice" title="Record voice">${adaqIcon('mic')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="pasteImage(event)"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div><small class="muted" id="uploadLimits">Max ${window.ADAQ_LIMITS ? window.ADAQ_LIMITS.max_file_mb : 5} MB · voice up to 120s · images, PDF, TXT, DOCX</small>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
 }
@@ -1151,18 +1161,29 @@ function toggleMsgMenu(e, id) {
   const open = document.querySelector('.msg-drop');
   closeMsgMenus();
   if (open) return;
-  const bubble = e.currentTarget.closest('.bubble'); if (!bubble) return;
+  const holder = e.currentTarget.parentElement || e.currentTarget.closest('.bubble'); if (!holder) return;
   const drop = document.createElement('div');
   drop.className = 'msg-drop';
   drop.innerHTML = '<button type="button" onclick="deleteOwnMessage(' + Number(id) + ')">Delete message</button>';
-  bubble.appendChild(drop);
+  holder.appendChild(drop);
 }
 document.addEventListener('click', closeMsgMenus);
 async function deleteOwnMessage(id) {
   closeMsgMenus();
   if (!confirm('Delete this message?')) return;
   try { await api('/chat/messages/' + id + '?mode=everyone', { method: 'DELETE' }); } catch (e) { alert(e.message); return; }
-  if (CHAT_ID) loadChatMessages(CHAT_ID);
+  // Update this bubble only: a full reload scrolls the chat to the newest message.
+  const bubble = document.querySelector('#msgScroll .bubble[data-id="' + id + '"]');
+  if (!bubble) return;
+  const scroll = document.getElementById('msgScroll');
+  const top = scroll ? scroll.scrollTop : 0;
+  const mediaNode = bubble.querySelector('.bubble-media,video,audio,.file-link');
+  const holder = bubble.closest('.msg-line') && bubble.closest('.msg-line').querySelector('.menu-holder');
+  if (holder) holder.remove();
+  bubble.innerHTML = '';
+  if (mediaNode) bubble.appendChild(mediaNode.cloneNode(true));
+  bubble.insertAdjacentHTML('afterbegin', `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>`);
+  if (scroll) scroll.scrollTop = top;
 }
 function showMsgNotice(text) {
   const n = document.getElementById('msgNotice'); if (!n) return;
@@ -1187,6 +1208,44 @@ function zoomMedia(d){/* disabled: the viewer fits any image with no scrollbars 
 function closeMedia(){document.getElementById('mediaViewer').classList.add('hidden');const img=document.getElementById('mediaViewImg');if(img){img.src='';img.style.transform=''};MEDIA_SCALE=1;MEDIA_X=0;MEDIA_Y=0}
 function downloadMedia(){const a=document.createElement('a');a.href=fileUrl(MEDIA_URL)+'&download=1';a.download='attachment';a.click()}
 
+let CHAT_PENDING_FILE = null, CHAT_PREVIEW_URL = '';
+function prepareChatFile(file) {
+  if (!file || !CHAT_ID) return;
+  const maxMb = Number((window.ADAQ_LIMITS && window.ADAQ_LIMITS.max_file_mb) || 5);
+  if (file.size > maxMb * 1024 * 1024) { alert('Maximum Max 5 mb Attachment'); return; }
+  const ext = String(file.name || '').toLowerCase().split('.').pop();
+  const ok = /^(image\/(png|jpeg|webp|gif)|(audio|video)\/(webm|mp4)|text\/plain|application\/(pdf|vnd\.openxmlformats-officedocument\.wordprocessingml\.document))$/.test(file.type || '')
+    || ['png','jpg','jpeg','webp','gif','mp4','webm','m4a','pdf','txt','docx'].includes(ext);
+  if (!ok) { alert('files not supported'); return; }
+  CHAT_PENDING_FILE = file;
+  const box = document.getElementById('attachConfirm');
+  if (!box) return;
+  const preview = document.getElementById('attachPreview');
+  if (CHAT_PREVIEW_URL) { URL.revokeObjectURL(CHAT_PREVIEW_URL); CHAT_PREVIEW_URL = ''; }
+  preview.innerHTML = '';
+  if (String(file.type || '').startsWith('image/')) {
+    CHAT_PREVIEW_URL = URL.createObjectURL(file);
+    preview.innerHTML = '<img src="' + CHAT_PREVIEW_URL + '" alt="">';
+  } else preview.innerHTML = adaqIcon('attach');
+  document.getElementById('attachName').textContent = file.name || 'Voice message';
+  box.classList.remove('hidden');
+}
+function clearPendingAttachment() {
+  CHAT_PENDING_FILE = null;
+  const box = document.getElementById('attachConfirm');
+  if (box) box.classList.add('hidden');
+  const preview = document.getElementById('attachPreview');
+  if (preview) preview.innerHTML = '';
+  if (CHAT_PREVIEW_URL) { URL.revokeObjectURL(CHAT_PREVIEW_URL); CHAT_PREVIEW_URL = ''; }
+  const input = document.getElementById('chatFile');
+  if (input) input.value = '';
+}
+function cancelSendAttachment() { clearPendingAttachment(); }
+function confirmSendAttachment() {
+  const file = CHAT_PENDING_FILE;
+  clearPendingAttachment();
+  if (file) sendChatFile(file);
+}
 function sendChatFile(provided) {
   const input = document.getElementById('chatFile');
   const file = provided || (input && input.files ? input.files[0] : null);
@@ -1212,7 +1271,7 @@ function pasteImage(e){
   const items=e.clipboardData&&e.clipboardData.items;
   if(!items)return;
   for(const it of items){if(it.type&&it.type.startsWith('image/')){
-    const f=it.getAsFile();if(f){e.preventDefault();sendChatFile(f);return}
+    const f=it.getAsFile();if(f){e.preventDefault();prepareChatFile(f);return}
   }}
 }
 let VOICE_REC=null,VOICE_T=0,VOICE_TIMER=null;
@@ -1235,7 +1294,7 @@ async function toggleVoice(){
       if(!secs)return;
       const blob=new Blob(chunks,{type:mime});
       const f=new File([blob],'voice.'+(mime.includes('mp4')?'m4a':'webm'),{type:mime});
-      sendChatFile(f);
+      prepareChatFile(f);
     };
     VOICE_REC.start();
     VOICE_TIMER=setInterval(()=>{

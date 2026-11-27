@@ -50,6 +50,13 @@ const ghHeaders = () => ({
   'Accept': 'application/vnd.github+json',
   'X-GitHub-Api-Version': '2022-11-28'
 });
+// Debounce DB snapshots after writes so a deploy right after a signal/log change
+// cannot restore an older backup. Bursts (e.g. 50 history entries) become one PUT.
+let dbBackupTimer = null;
+global.adaqBackupDB = () => {
+  clearTimeout(dbBackupTimer);
+  dbBackupTimer = setTimeout(() => { dbBackupTimer = null; ghBackup(); }, 800);
+};
 // GitHub's contents API returns an EMPTY content field for files over 1 MB,
 // so raw bytes must always be downloaded — otherwise every restore silently fails
 // once uploads.tar.gz (avatars + chat images) grows, wiping all media on deploy.
@@ -248,6 +255,18 @@ function requireRole(...roles) {
     next();
   };
 }
+
+// Any successful write to /api is snapshotted to GitHub shortly afterwards.
+// Heartbeats, typing pings and logout are noise and are excluded.
+app.use('/api', (req, res, next) => {
+  const noisy = ['/activity', '/chat/typing', '/auth/logout'].includes(req.path);
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !noisy) {
+    res.on('finish', () => {
+      if (res.statusCode < 400 && typeof global.adaqBackupDB === 'function') global.adaqBackupDB();
+    });
+  }
+  next();
+});
 
 // WebSocket clients
 const clients = new Map(); // userId -> Set of ws
@@ -667,7 +686,7 @@ async function ghBackupUploads() {
 }
 if (GH_API && GH_TOKEN) {
   setTimeout(() => { ghBackup(); ghBackupUploads(); }, 5000);
-  setInterval(() => { ghBackup(); ghBackupUploads(); }, 60 * 1000);
+  setInterval(() => { ghBackup(); ghBackupUploads(); }, 30 * 1000);
   // Startup audit: report profile pictures / chat media whose files did not survive a deploy.
   setTimeout(() => {
     try {
@@ -726,7 +745,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v59' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v61' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
