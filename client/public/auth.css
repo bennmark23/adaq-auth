@@ -116,7 +116,7 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .friend-item .bot-tag{color:var(--icon-muted);font-size:8px;font-weight:700}
 .msg-layout{display:block;min-height:0;flex:1}
 .chat-full{display:none;flex-direction:column;min-height:0;flex:1}
-#messengerModal.chat-open .friend-strip,#messengerModal.chat-open .msg-layout{display:none}
+#messengerModal.chat-open .friend-strip,#messengerModal.chat-open .msg-layout,#messengerModal.chat-open .msg-list-label{display:none}
 #messengerModal.chat-open .chat-full{display:flex}
 .msg-inbox{border-right:1px solid var(--bd);padding-right:8px;overflow:auto}
 .conv-item{display:flex;gap:8px;align-items:center;width:100%;padding:8px;border:0;border-radius:8px;background:none;color:var(--tx);text-align:left;cursor:pointer}
