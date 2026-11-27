@@ -6,6 +6,9 @@ const crypto = require('crypto');
 const DATA_DIR = require('./data_safety').resolveDataDir();
 const CHAT_UPLOADS = path.join(DATA_DIR, 'chat_uploads');
 if (!fs.existsSync(CHAT_UPLOADS)) fs.mkdirSync(CHAT_UPLOADS, { recursive: true });
+// Supplied by server.js: online means a live WebSocket session, not a recent ping.
+let onlineCheck = null;
+const liveOnline = uid => !!onlineCheck && !!onlineCheck(uid);
 const MAX_FILE_MB = Math.max(1, Math.min(25, parseInt(process.env.MAX_FILE_MB || '5', 10) || 5));
 const MAX_VOICE_SECONDS = Math.max(10, Math.min(300, parseInt(process.env.MAX_VOICE_SECONDS || '120', 10) || 120));
 const MAX_FILES_DAY = Math.max(1, parseInt(process.env.MAX_FILES_PER_DAY_PER_USER || '50', 10) || 50);
@@ -136,7 +139,8 @@ CREATE INDEX IF NOT EXISTS idx_chat_reactions_msg ON chat_reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_chat_reads_msg ON chat_reads(message_id);
 CREATE INDEX IF NOT EXISTS idx_chat_attachments_msg ON chat_attachments(message_id);
 `;
-function setup(db) {
+function setup(db, isOnlineFn) {
+  if (typeof isOnlineFn === 'function') onlineCheck = isOnlineFn;
   db.exec(SCHEMA);
   try { db.exec("ALTER TABLE chat_conversations ADD COLUMN kind TEXT NOT NULL DEFAULT 'direct'"); } catch (e) {}
 }
@@ -195,7 +199,7 @@ function publicMember(db, conv, meId) {
     pinned: !!(mine && mine.pinned), muted: !!(mine && mine.muted), archived: !!(mine && mine.archived),
     unread: mine ? mine.unread_count : 0,
     last_message_at: conv.last_message_at, last_message_preview: conv.last_message_preview,
-    online: other ? (() => { const u = db.prepare('SELECT last_active FROM users WHERE id=?').get(other.user_id); return !!(u && Date.now() - (u.last_active || 0) < 90000); })() : false,
+    online: other ? liveOnline(other.user_id) : false,
     // Admins may reply in their own notice chats; users may not reply to the Admin.
     canReply: (conv.kind !== 'admin_notice' || (me && me.role === 'admin')) && (conv.type !== 'direct' || !other || (other.username !== 'admin' && !isBotUsername(other.username)))
   };
@@ -296,8 +300,8 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
   });
   // Free-standing Messenger API aliases (same implementation as /api/chat).
   app.get('/api/messenger/users', ...A, (req, res) => {
-    const users = db.prepare("SELECT id,username,avatar,last_active FROM users WHERE role='user' AND id<>? ORDER BY username").all(req.user.id)
-      .map(u => ({ id: u.id, name: u.username, avatar: u.avatar || '/default-avatar.svg', online: Date.now() - (u.last_active || 0) < 90000 }));
+    const users = db.prepare("SELECT id,username,avatar FROM users WHERE role='user' AND id<>? ORDER BY username").all(req.user.id)
+      .map(u => ({ id: u.id, name: u.username, avatar: u.avatar || '/default-avatar.svg', online: liveOnline(u.id) }));
     res.json({ users });
   });
   app.get('/api/messenger/conversations', ...A, (req, res) => {

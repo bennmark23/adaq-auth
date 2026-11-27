@@ -277,13 +277,14 @@ async function afterLogin() {
   if (rf) rf.onchange = loadReports;
   if (rtf) rtf.onchange = loadReports;
   // presence heartbeat
-  setInterval(() => { api('/activity', { method: 'POST', body: { action: 'heartbeat' } }).catch(() => {}); }, 30000);
+  setInterval(() => { if (!document.hidden && TOKEN) api('/activity', { method: 'POST', body: { action: 'heartbeat' } }).catch(() => {}); }, 30000);
   if (typeof window.syncTradeLogs === 'function') window.syncTradeLogs();
   try { SV('privacy_notice_seen', true); } catch (e) {}
 }
 
 function logout() {
-  try { fetch('/api/auth/logout', { method: 'POST', headers: { authorization: 'Bearer ' + (sessionStorage.getItem('adaq_token') || '') } }); } catch (e) {}
+  markOffline();
+  try { fetch(getServerUrl() + '/api/auth/logout', { method: 'POST', headers: { authorization: 'Bearer ' + (sessionStorage.getItem('adaq_token') || '') } }); } catch (e) {}
   TOKEN = ''; sessionStorage.removeItem('adaq_token'); USER = null;
   if (typeof S !== 'undefined' && S) { S.bannerLocked = true; S.stickySig = null; S.sig = null; }
   ['profileModal','cpModal','adminModal','enrollModal'].forEach(id => { const m = document.getElementById(id); if (m) m.classList.add('hidden'); });
@@ -692,9 +693,25 @@ async function sendAnnouncement() {
   } catch (e) { alert(e.message); }
 }
 
-// ---- WebSocket ----
-let ws = null;
+// ---- WebSocket / live presence ----
+let ws = null, leaving = false;
+function markOffline() {
+  const tok = sessionStorage.getItem('adaq_token') || TOKEN;
+  if (!tok) return;
+  leaving = true;
+  try {
+    const url = getServerUrl() + '/api/presence/offline?token=' + encodeURIComponent(tok);
+    if (navigator.sendBeacon) navigator.sendBeacon(url);
+    else fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
+  } catch (e) {}
+  try { if (ws) { ws.onclose = null; ws.close(); } } catch (e) {}
+}
+function resumeOnline() {
+  leaving = false;
+  if (TOKEN && (!ws || ws.readyState > 1)) connectWS();
+}
 function connectWS() {
+  if (!TOKEN) return;
   if (ws) try { ws.close(); } catch (e) {}
   const base = getServerUrl();
   const proto = base.startsWith('https') ? 'wss:' : 'ws:';
@@ -706,7 +723,7 @@ function connectWS() {
     if (m.type === 'message') { loadMessages(); }
     if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read' || m.type === 'unread' || m.type === 'chat_updated' || m.type === 'chat_deleted') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
   };
-  ws.onclose = () => { setTimeout(connectWS, 3000); };
+  ws.onclose = () => { if (TOKEN && !leaving) setTimeout(connectWS, 3000); };
 }
 
 // ---- init ----
@@ -779,9 +796,11 @@ if (document.readyState === 'complete' || document.readyState === 'interactive')
 } else {
   window.addEventListener('load', init);
 }
-// session reset on visibility hidden / pagehide
-document.addEventListener('visibilitychange', () => { if (document.hidden) { /* keep token; server tracks last_active */ } });
-window.addEventListener('pagehide', () => { /* optional: logout(); */ });
+// Live presence across browser tabs, Android WebView and the desktop shell.
+document.addEventListener('visibilitychange', () => { if (document.hidden) markOffline(); else resumeOnline(); });
+window.addEventListener('pagehide', markOffline);
+window.addEventListener('beforeunload', markOffline);
+window.addEventListener('pageshow', e => { if (e.persisted) resumeOnline(); });
 
 // ---- Admin's Features ----
 function switchAdminTab2(t) {
@@ -1228,9 +1247,12 @@ function prepareChatFile(file) {
   const preview = document.getElementById('attachPreview');
   if (CHAT_PREVIEW_URL) { URL.revokeObjectURL(CHAT_PREVIEW_URL); CHAT_PREVIEW_URL = ''; }
   preview.innerHTML = '';
-  if (String(file.type || '').startsWith('image/')) {
+  const mime = String(file.type || '');
+  if (mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/')) {
     CHAT_PREVIEW_URL = URL.createObjectURL(file);
-    preview.innerHTML = '<img src="' + CHAT_PREVIEW_URL + '" alt="">';
+    preview.innerHTML = mime.startsWith('image/') ? '<img src="' + CHAT_PREVIEW_URL + '" alt="">'
+      : mime.startsWith('video/') ? '<video src="' + CHAT_PREVIEW_URL + '" controls playsinline muted></video>'
+      : '<audio src="' + CHAT_PREVIEW_URL + '" controls></audio>';
   } else preview.innerHTML = adaqIcon('attach');
   document.getElementById('attachName').textContent = file.name || 'Voice message';
   box.classList.remove('hidden');

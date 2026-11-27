@@ -194,7 +194,7 @@ const { setup: setupDesigns, registerRoutes: registerDesignRoutes } = require('.
 const { setup: setupMessenger, registerRoutes: registerMessengerRoutes } = require('./messenger');
 const { setup: setupLogs, registerRoutes: registerLogRoutes } = require('./trading_logs');
 setupDesigns(db);
-setupMessenger(db);
+setupMessenger(db, isOnline);
 setupLogs(db);
 // One-time importer from earlier JSON storage (keeps data.json untouched).
 try { ds.importLegacyJson(db, DATA_DIR); } catch (e) { console.error('Legacy import failed:', e.message); }
@@ -259,7 +259,7 @@ function requireRole(...roles) {
 // Any successful write to /api is snapshotted to GitHub shortly afterwards.
 // Heartbeats, typing pings and logout are noise and are excluded.
 app.use('/api', (req, res, next) => {
-  const noisy = ['/activity', '/chat/typing', '/auth/logout'].includes(req.path);
+  const noisy = ['/activity', '/chat/typing', '/auth/logout', '/presence/offline'].includes(req.path);
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && !noisy) {
     res.on('finish', () => {
       if (res.statusCode < 400 && typeof global.adaqBackupDB === 'function') global.adaqBackupDB();
@@ -281,12 +281,24 @@ wss.on('connection', (ws, req) => {
   if (!user) { ws.close(); return; }
   if (!clients.has(user.id)) clients.set(user.id, new Set());
   clients.get(user.id).add(ws);
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
   broadcast('presence', { user_id: user.id, online: true });
   ws.on('close', () => {
     const s = clients.get(user.id); if (s) { s.delete(ws); if (!s.size) { clients.delete(user.id); broadcast('presence', { user_id: user.id, online: false }); } }
   });
   ws.send(JSON.stringify({ type: 'hello', userId: user.id }));
 });
+// Dead sockets (mobile app killed, desktop force-quit) must not stay "online".
+const wsPing = setInterval(() => {
+  for (const w of wss.clients) {
+    if (w.readyState !== 1) continue;
+    if (w.isAlive === false) { w.terminate(); continue; }
+    w.isAlive = false;
+    try { w.ping(() => {}); } catch (e) { w.terminate(); }
+  }
+}, 30000);
+wss.on('close', () => clearInterval(wsPing));
 
 function broadcast(type, data, filterFn) {
   for (const [uid, set] of clients.entries()) {
@@ -297,6 +309,13 @@ function broadcast(type, data, filterFn) {
 }
 
 function isOnline(uid) { return clients.has(uid) && clients.get(uid).size > 0; }
+// Presence is driven by live WebSocket sessions, never by a stale heartbeat.
+function disconnectUser(uid, clearLastActive) {
+  if (clearLastActive) { try { db.prepare('UPDATE users SET last_active=0 WHERE id=?').run(uid); } catch (e) {} }
+  const set = clients.get(uid);
+  if (set) { for (const w of set) { try { w.close(); } catch (e) {} } set.clear(); clients.delete(uid); }
+  broadcast('presence', { user_id: uid, online: false });
+}
 
 // ---- Auth ----
 app.post('/api/auth/login', (req, res) => {
@@ -701,8 +720,7 @@ if (GH_API && GH_TOKEN) {
 // Lightweight presence for the Messenger people strip: every account (online or not),
 // plus the admin (clicking it opens Messenger but cannot be messaged). No bots here.
 app.get('/api/presence', auth, (req, res) => {
-  const now = Date.now();
-  const onlineOf = u => (now - (u.last_active || 0) < 90000) || isOnline(u.id);
+  const onlineOf = u => isOnline(u.id);
   const users = db.prepare("SELECT id,username,role,avatar,last_active FROM users WHERE role='user' ORDER BY last_active DESC").all()
     .map(u => ({ id: 'u_' + u.id, name: u.username, type: 'user', online: onlineOf(u), avatar: u.avatar || '/default-avatar.svg' }));
   const admins = db.prepare("SELECT id,username,avatar,last_active FROM users WHERE role='admin'").all()
@@ -713,7 +731,17 @@ app.get('/api/presence', auth, (req, res) => {
 
 // Mark the account offline immediately on logout so the strip shows "Offline" (red).
 app.post('/api/auth/logout', auth, (req, res) => {
-  try { db.prepare('UPDATE users SET last_active=0 WHERE id=?').run(req.user.id); } catch (e) {}
+  disconnectUser(req.user.id, true);
+  res.json({ ok: true });
+});
+// Tab/app closed: sendBeacon posts here with the session token in the query string.
+// This works in browsers, the Android WebView and the desktop shell alike.
+app.post('/api/presence/offline', (req, res) => {
+  const token = req.query.token || (req.body && req.body.token) || (req.headers.authorization || '').replace(/^Bearer\s+/, '');
+  let user = null;
+  try { const p = jwt.verify(token, JWT_SECRET); user = db.prepare('SELECT id FROM users WHERE id=?').get(p.id); } catch (e) {}
+  if (!user) return res.status(401).json({ error: 'Invalid token' });
+  disconnectUser(user.id, true);
   res.json({ ok: true });
 });
 
@@ -745,7 +773,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v68' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v69' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
