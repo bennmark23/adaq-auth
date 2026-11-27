@@ -223,11 +223,21 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     if (!a) return res.status(404).end();
     try { assertConversationAccess(db, user.id, a.conversation_id); } catch (e) { return res.status(403).end(); }
     res.set('x-content-type-options', 'nosniff');
-    // Thumbnails are always written as JPEG; serve them with the matching type.
-    // A wrong declared type (e.g. image/png for a JPEG thumbnail) makes browsers reject the image.
-    res.type(file.endsWith('_thumb.jpg') ? 'image/jpeg' : (a.mime || 'application/octet-stream'));
+    // A restored DB can be newer than the uploaded media archive. Serve the
+    // original image when only its thumbnail is missing, and answer 404 quietly
+    // when the file is really gone (sendFile would otherwise log ENOENT stacks).
+    let target = path.join(CHAT_UPLOADS, file);
+    if (!fs.existsSync(target)) {
+      const original = file.endsWith('_thumb.jpg') && a.path ? path.join(CHAT_UPLOADS, path.basename(a.path)) : '';
+      if (!original || !fs.existsSync(original)) return res.status(404).end();
+      target = original;
+      res.type(a.mime || 'image/jpeg');
+    } else {
+      // Thumbnails are always written as JPEG; a wrong declared type makes browsers reject them.
+      res.type(file.endsWith('_thumb.jpg') ? 'image/jpeg' : (a.mime || 'application/octet-stream'));
+    }
     if (req.query.download) res.set('content-disposition', 'attachment; filename="attachment"');
-    res.sendFile(path.join(CHAT_UPLOADS, file));
+    res.sendFile(target, err => { if (err && !res.headersSent) res.status(404).end(); });
   });
   app.post('/api/chat/conversations/:id/media', ...A, chatUpload.single('file'), async (req, res) => {
     const id = Number(req.params.id);

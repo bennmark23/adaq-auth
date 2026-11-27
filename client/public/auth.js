@@ -1085,8 +1085,8 @@ async function loadChatMessages(id) {
       // Attachments never render the stored body (legacy rows contain the raw upload path).
       const body = deleted ? `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>` : (m.attachment ? '' : escapeHtml(m.body || ''));
       const reacts = (m.reactions || []).map(x => `<span class="react">${escapeHtml(x.emoji)} ${x.n}</span>`).join('');
-      // Keep attachments available even when the message text is deleted.
-      const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onerror="chatImgError(this,'${escapeHtml(m.attachment.path)}')" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="Image attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      // A deleted message shows only "Deleted message": no image, file or voice player.
+      const media = (!deleted && m.attachment) ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onerror="chatImgError(this,'${escapeHtml(m.attachment.path)}')" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="Image attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
       const menu = (mine && !deleted) ? `<span class="menu-holder"><button type="button" class="msg-menu" aria-label="Message options" onclick="toggleMsgMenu(event,${m.id})">${adaqIcon('dots')}</button></span>` : '';
       return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
         <div class="msg-line">${menu}<div class="bubble ${mine ? 'mine' : ''}${media ? ' has-media' : ''}" data-id="${m.id}">${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at && !deleted ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div></div>
@@ -1183,12 +1183,10 @@ async function deleteOwnMessage(id) {
   if (!bubble) return;
   const scroll = document.getElementById('msgScroll');
   const top = scroll ? scroll.scrollTop : 0;
-  const mediaNode = bubble.querySelector('.bubble-media,video,audio,.file-link');
   const holder = bubble.closest('.msg-line') && bubble.closest('.msg-line').querySelector('.menu-holder');
   if (holder) holder.remove();
-  bubble.innerHTML = '';
-  if (mediaNode) bubble.appendChild(mediaNode.cloneNode(true));
-  bubble.insertAdjacentHTML('afterbegin', `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>`);
+  bubble.classList.remove('has-media');
+  bubble.innerHTML = `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>`;
   if (scroll) scroll.scrollTop = top;
   loadConversations(); // refresh only the chat list preview, never the open chat
 }
