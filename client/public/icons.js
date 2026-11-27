@@ -32,7 +32,9 @@ window.ADAQ_ICONS = {
   bot: '<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 14h.01M15 14h.01M8 18h8"/>',
   pin: '<path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3z"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
-  back: '<path d="M19 12H5m0 0 6-6m-6 6 6 6"/>'
+  back: '<path d="M19 12H5m0 0 6-6m-6 6 6 6"/>',
+  dots: '<circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/>',
+  circle: '<circle cx="12" cy="12" r="8"/>'
 };
 window.adaqIcon = function (name, cls) {
   const body = window.ADAQ_ICONS[name] || window.ADAQ_ICONS.comment;

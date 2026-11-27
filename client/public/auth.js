@@ -285,6 +285,7 @@ async function afterLogin() {
 }
 
 function logout() {
+  try { fetch('/api/auth/logout', { method: 'POST', headers: { authorization: 'Bearer ' + (sessionStorage.getItem('adaq_token') || '') } }); } catch (e) {}
   TOKEN = ''; sessionStorage.removeItem('adaq_token'); USER = null;
   if (typeof S !== 'undefined' && S) { S.bannerLocked = true; S.stickySig = null; S.sig = null; }
   ['profileModal','cpModal','adminModal','enrollModal'].forEach(id => { const m = document.getElementById(id); if (m) m.classList.add('hidden'); });
@@ -556,11 +557,12 @@ async function loadFriendStrip(){
   try{
     const j=await (await fetch('/api/presence',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}})).json();
     const me = 'u_' + String((typeof USER !== 'undefined' && USER && USER.id) || 0);
-    const users=(j.members||[]).filter(m=>m.type!=='bot' && m.id!==me);
-    const bots=(j.members||[]).filter(m=>m.type==='bot');
-    const members=[...users,...bots]; // users first, bots always at the end
-    const item=m=>`<button class="friend-item" ${m.type==='bot'?'data-bot="1"':'data-uid="'+(m.id||'').replace('u_','')+'"'} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<small class="presence ${m.online?'on':'off'}">${m.online?'Online':'Offline'}</small><i class="dot ${m.online?'on':''}"></i></button>`;
-    s.innerHTML='<div class="track">'+(members.length ? members.map(item).join('') : '<small class="muted">No one online right now.</small>')+'</div>';
+    const members=(j.members||[]).filter(m=>m.id!==me); // admin first, then every user (online or offline); no bots
+    const item=m=>{
+      const attr=m.type==='admin'?'data-admin="1"':(m.type==='bot'?'data-bot="1"':'data-uid="'+String(m.id||'').replace('u_','')+'"');
+      return `<button class="friend-item" ${attr} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<small class="presence ${m.online?'on':'off'}">${m.online?'Online':'Offline'}</small><i class="dot ${m.online?'on':''}"></i></button>`;
+    };
+    s.innerHTML='<div class="track">'+(members.length ? members.map(item).join('') : '<small class="muted">No one here yet.</small>')+'</div>';
     // Manual horizontal scroll: drag with mouse on desktop, native finger scroll on APK.
     let dragging=false,x0=0,scroll0=0;
     s.onpointerdown=e=>{if(e.pointerType==='touch')return;dragging=true;x0=e.clientX;scroll0=s.scrollLeft;s.setPointerCapture&&s.setPointerCapture(e.pointerId)};
@@ -569,7 +571,8 @@ async function loadFriendStrip(){
     s.onpointercancel=()=>dragging=false;
     s.onclick=async e=>{
       const b=e.target.closest('.friend-item');if(!b)return;
-      if(b.dataset.bot){alert('Bots cannot be messaged');return}
+      if(b.dataset.bot){alert('You cannot message a bot');return}
+      if(b.dataset.admin){await openMessenger();showMsgNotice('You are not allowed to reply the Admin');return}
       const uid=b.dataset.uid;if(!uid)return;
       try {
         const r=await api('/chat/conversations',{method:'POST',body:{target_id:Number(uid)}});
@@ -1029,6 +1032,8 @@ async function openChat(id) {
   CHAT_ID = Number(id);
   const modal = document.getElementById('messengerModal');
   if (modal) modal.classList.add('chat-open');
+  const pane = document.getElementById('chatFull');
+  if (pane) pane.innerHTML = '<div class="msg-note">Loading...</div>'; // never flash the previous chat
   await loadChatMessages(CHAT_ID);
   loadConversations();
   if (typeof window.updateBubble === 'function') window.updateBubble();
@@ -1043,10 +1048,13 @@ function closeChatView() {
 async function loadChatMessages(id) {
   const pane = document.getElementById('chatFull');
   if (!pane) return;
+  const stale = () => Number(id) !== Number(CHAT_ID); // another chat was opened meanwhile
   try {
     const r = await api('/chat/conversations/' + id + '/messages');
+    if (stale()) return;
     const msgs = r.messages || [];
     const conv = ((await api('/chat/conversations')).conversations || []).find(c => c.id === Number(id)) || {};
+    if (stale()) return;
     const canReply = conv.canReply !== false;
     let lastDay = '';
     const list = msgs.map(m => {
@@ -1058,11 +1066,13 @@ async function loadChatMessages(id) {
         sep = `<div class="msg-day">${dayKey === new Date().toDateString() ? 'Today' : d.toLocaleDateString()}</div>`;
       }
       const mine = m.sender_id === (USER ? USER.id : 0);
-      const body = m.deleted_for_everyone ? '<i>Message removed</i>' : escapeHtml(m.body || '');
+      const deleted = !!m.deleted_for_everyone;
+      const body = deleted ? `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>` : escapeHtml(m.body || '');
       const reacts = (m.reactions || []).map(x => `<span class="react">${escapeHtml(x.emoji)} ${x.n}</span>`).join('');
-      const media = m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      const media = !deleted && m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      const menu = (mine && !deleted) ? `<button type="button" class="msg-menu" aria-label="Message options" onclick="toggleMsgMenu(event,${m.id})">${adaqIcon('dots')}</button>` : '';
       return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
-        <div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
+        <div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">${menu}${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at && !deleted ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
         <small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
       </div>`;
     }).join('');
@@ -1073,7 +1083,7 @@ async function loadChatMessages(id) {
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
       <div class="msg-scroll" id="msgScroll">${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
       <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
-      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" onclick="insertEmoji()" aria-label="Emoji" title="Emoji">${adaqIcon('react')}</button><button class="btn btn-ghost" style="min-width:44px" id="micBtn" onclick="toggleVoice()" aria-label="Record voice" title="Record voice">${adaqIcon('mic')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="pasteImage(event)"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div><small class="muted" id="uploadLimits">Max ${window.ADAQ_LIMITS ? window.ADAQ_LIMITS.max_file_mb : 5} MB · voice up to 120s · images, PDF, TXT, DOCX</small>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
+      ${canReply ? `<div class="msg-compose"><label class="file-btn btn btn-ghost" title="Attach file" style="min-width:44px;justify-content:center">${adaqIcon('attach')}<input type="file" id="chatFile" onchange="sendChatFile()" accept="image/*,video/*,audio/*,.pdf,.txt,.zip"></label><button class="btn btn-ghost" style="min-width:44px" id="micBtn" onclick="toggleVoice()" aria-label="Record voice" title="Record voice">${adaqIcon('mic')}</button><input id="chatInput" placeholder="Type a message" onkeydown="typingNow();if(event.key==='Enter')sendChatMessage()" onpaste="pasteImage(event)"><button class="btn btn-primary" onclick="sendChatMessage()">Send</button></div><div id="uploadStatus" class="msg-note" style="display:none"></div><small class="muted" id="uploadLimits">Max ${window.ADAQ_LIMITS ? window.ADAQ_LIMITS.max_file_mb : 5} MB · voice up to 120s · images, PDF, TXT, DOCX</small>` : `<div class="msg-note">${conv.kind === 'admin_notice' ? 'You are not allowed to reply the Admin' : 'You can\'t reply to this account'}</div>`}`;
     const sc = document.getElementById('msgScroll'); if (sc) sc.scrollTop = sc.scrollHeight;
   } catch (e) { pane.innerHTML = '<div class="msg-note">' + escapeHtml(e.message) + '</div>'; }
 }
@@ -1133,33 +1143,44 @@ function typingNow() {
   api('/chat/conversations/' + CHAT_ID + '/typing', { method: 'POST', body: {} }).catch(() => {});
 }
 let CHAT_XHR = null;
-function insertEmoji() {
-  const i = document.getElementById('chatInput');
-  if (!i) return;
-  i.value += '😊';
-  i.focus();
+// Message options: owner-only 3-dot menu with "Delete message".
+function closeMsgMenus() { document.querySelectorAll('.msg-drop').forEach(d => d.remove()); }
+function toggleMsgMenu(e, id) {
+  e.stopPropagation();
+  const open = document.querySelector('.msg-drop');
+  closeMsgMenus();
+  if (open) return;
+  const bubble = e.currentTarget.closest('.bubble'); if (!bubble) return;
+  const drop = document.createElement('div');
+  drop.className = 'msg-drop';
+  drop.innerHTML = '<button type="button" onclick="deleteOwnMessage(' + Number(id) + ')">Delete message</button>';
+  bubble.appendChild(drop);
+}
+document.addEventListener('click', closeMsgMenus);
+async function deleteOwnMessage(id) {
+  closeMsgMenus();
+  if (!confirm('Delete this message?')) return;
+  try { await api('/chat/messages/' + id + '?mode=everyone', { method: 'DELETE' }); } catch (e) { alert(e.message); return; }
+  if (CHAT_ID) loadChatMessages(CHAT_ID);
+}
+function showMsgNotice(text) {
+  const n = document.getElementById('msgNotice'); if (!n) return;
+  n.textContent = text; n.style.display = 'block';
+  clearTimeout(window.__msgNotice);
+  window.__msgNotice = setTimeout(() => { n.style.display = 'none'; }, 3500);
 }
 function viewMedia(url) {
   MEDIA_URL=url;MEDIA_SCALE=1;MEDIA_X=0;MEDIA_Y=0;
   const v=document.getElementById('mediaViewer'),img=document.getElementById('mediaViewImg');
-  if(img){img.src=fileUrl(url);applyMediaTransform()}
+  if(img){img.style.transform='';img.src=fileUrl(url)}
   if(v)v.classList.remove('hidden');
 }
 let MEDIA_SCALE=1,MEDIA_X=0,MEDIA_Y=0,MEDIA_URL='';
-function applyMediaTransform(){const i=document.getElementById('mediaViewImg');if(i)i.style.transform=`translate(${MEDIA_X}px,${MEDIA_Y}px) scale(${MEDIA_SCALE})`}
-function zoomMedia(d){MEDIA_SCALE=Math.max(1,Math.min(5,MEDIA_SCALE+(d>0?.25:-.25)));if(MEDIA_SCALE===1){MEDIA_X=0;MEDIA_Y=0}applyMediaTransform()}
-function closeMedia(){document.getElementById('mediaViewer').classList.add('hidden');MEDIA_SCALE=1;MEDIA_X=0;MEDIA_Y=0;applyMediaTransform()}
+function applyMediaTransform(){/* media is fitted to the screen: no pan or zoom */}
+function zoomMedia(d){/* disabled: the viewer fits any image with no scrollbars */}
+function closeMedia(){document.getElementById('mediaViewer').classList.add('hidden');const img=document.getElementById('mediaViewImg');if(img){img.src='';img.style.transform=''};MEDIA_SCALE=1;MEDIA_X=0;MEDIA_Y=0}
 function downloadMedia(){const a=document.createElement('a');a.href=fileUrl(MEDIA_URL)+'&download=1';a.download='attachment';a.click()}
-(function(){const vp=document.getElementById('mediaViewport');if(!vp)return;
-  let sx=0,sy=0,px=0,py=0,drag=false,pinch=0;
-  vp.addEventListener('wheel',e=>{e.preventDefault();zoomMedia(e.deltaY<0?1:-1)},{passive:false});
-  vp.addEventListener('dblclick',()=>zoomMedia(1));
-  vp.addEventListener('pointerdown',e=>{drag=true;sx=e.clientX;sy=e.clientY;px=MEDIA_X;py=MEDIA_Y});
-  vp.addEventListener('pointermove',e=>{if(!drag)return;MEDIA_X=px+e.clientX-sx;MEDIA_Y=py+e.clientY-sy;applyMediaTransform()});
-  vp.addEventListener('pointerup',()=>drag=false);
-  vp.addEventListener('touchstart',e=>{if(e.touches.length===2)pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)},{passive:true});
-  vp.addEventListener('touchmove',e=>{if(e.touches.length===2&&pinch){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(Math.abs(d-pinch)>20){zoomMedia(d>pinch?1:-1);pinch=d}}},{passive:true});
-})();
+
 function sendChatFile(provided) {
   const input = document.getElementById('chatFile');
   const file = provided || (input && input.files ? input.files[0] : null);

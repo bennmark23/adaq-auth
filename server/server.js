@@ -50,24 +50,39 @@ const ghHeaders = () => ({
   'Accept': 'application/vnd.github+json',
   'X-GitHub-Api-Version': '2022-11-28'
 });
+// GitHub's contents API returns an EMPTY content field for files over 1 MB,
+// so raw bytes must always be downloaded — otherwise every restore silently fails
+// once uploads.tar.gz (avatars + chat images) grows, wiping all media on deploy.
+function ghCurl(url, out, accept) {
+  execFileSync('curl', ['-fsSL', '--max-time', '60', '-H', 'Authorization: Bearer ' + GH_TOKEN,
+    '-H', 'Accept: ' + accept, url, '-o', out], { stdio: 'ignore', timeout: 65000 });
+}
+function ghDownload(url, dest) {
+  const meta = dest + '.meta.json';
+  let sha = '';
+  try {
+    ghCurl(url, meta, 'application/vnd.github.object+json'); // object type works for files 1–100 MB
+    const j = JSON.parse(fs.readFileSync(meta, 'utf8'));
+    sha = (j && j.sha) || '';
+  } catch (e) {}
+  try { if (fs.existsSync(meta)) fs.unlinkSync(meta); } catch (e) {}
+  ghCurl(url, dest, 'application/vnd.github.raw+json'); // raw bytes for files 1–100 MB
+  const size = fs.existsSync(dest) ? fs.statSync(dest).size : 0;
+  if (size < 512) throw new Error('GitHub backup is empty (' + size + ' bytes)');
+  return sha;
+}
 // Restore synchronously BEFORE the DB is opened, so all app code sees the restored data.
 function ghRestore() {
   if (!GH_API || !GH_TOKEN) return false;
-  const tmp = DB_PATH + '.gh.json';
+  const tmp = DB_PATH + '.gh.raw';
   try {
-    const url = GH_API + '?ref=' + encodeURIComponent(GH_BRANCH);
-    execFileSync('curl', ['-fsSL', '--max-time', '20', '-H', 'Authorization: Bearer ' + GH_TOKEN,
-      '-H', 'Accept: application/vnd.github+json', url, '-o', tmp], { stdio: 'ignore', timeout: 25000 });
-    const j = JSON.parse(fs.readFileSync(tmp, 'utf8'));
-    if (j && j.content && j.sha) {
-      fs.writeFileSync(DB_PATH, Buffer.from(String(j.content).replace(/\s+/g, ''), 'base64'));
-      ghSha = j.sha;
-      fs.unlinkSync(tmp);
-      console.log('DB restored from GitHub backup');
-      return true;
-    }
+    ghSha = ghDownload(GH_API + '?ref=' + encodeURIComponent(GH_BRANCH), tmp);
+    fs.copyFileSync(tmp, DB_PATH);
+    fs.unlinkSync(tmp);
+    console.log('DB restored from GitHub backup');
+    return true;
   } catch (e) {
-    console.log('No GitHub DB backup found; using local DB');
+    console.log('No GitHub DB backup found; using local DB (' + e.message + ')');
   }
   try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (e) {}
   return false;
@@ -75,24 +90,14 @@ function ghRestore() {
 // Restore profile pictures (uploads folder) from the same GitHub repo.
 function ghRestoreUploads() {
   if (!GH_UP_API || !GH_TOKEN) return false;
-  const json = DB_PATH + '.uploads.json';
   const archive = path.join(DATA_DIR, 'uploads.restore.tar.gz');
   try {
-    const url = GH_UP_API + '?ref=' + encodeURIComponent(GH_BRANCH);
-    execFileSync('curl', ['-fsSL', '--max-time', '20', '-H', 'Authorization: Bearer ' + GH_TOKEN,
-      '-H', 'Accept: application/vnd.github+json', url, '-o', json], { stdio: 'ignore', timeout: 25000 });
-    const j = JSON.parse(fs.readFileSync(json, 'utf8'));
-    if (j && j.content && j.sha) {
-      fs.writeFileSync(archive, Buffer.from(String(j.content).replace(/\s+/g, ''), 'base64'));
-      execFileSync('tar', ['-xzf', archive, '-C', DATA_DIR], { stdio: 'ignore', timeout: 30000 });
-      ghUploadsSha = j.sha;
-      fs.unlinkSync(archive);
-      fs.unlinkSync(json);
-      console.log('Uploads restored from GitHub backup');
-      return true;
-    }
-  } catch (e) { console.log('No GitHub uploads backup found; using local uploads'); }
-  try { if (fs.existsSync(json)) fs.unlinkSync(json); } catch (e) {}
+    ghUploadsSha = ghDownload(GH_UP_API + '?ref=' + encodeURIComponent(GH_BRANCH), archive);
+    execFileSync('tar', ['-xzf', archive, '-C', DATA_DIR], { stdio: 'ignore', timeout: 60000 });
+    fs.unlinkSync(archive);
+    console.log('Uploads restored from GitHub backup');
+    return true;
+  } catch (e) { console.log('No GitHub uploads backup found; using local uploads (' + e.message + ')'); }
   try { if (fs.existsSync(archive)) fs.unlinkSync(archive); } catch (e) {}
   return false;
 }
@@ -602,7 +607,7 @@ async function ghBackup() {
     const content = fs.readFileSync(tmp).toString('base64');
     if (!ghSha) {
       try {
-        const g = await fetch(GH_API + '?ref=' + encodeURIComponent(GH_BRANCH), { headers: ghHeaders() });
+        const g = await fetch(GH_API + '?ref=' + encodeURIComponent(GH_BRANCH), { headers: Object.assign(ghHeaders(), { Accept: 'application/vnd.github.object+json' }) });
         if (g.ok) { const j = await g.json(); ghSha = j.sha || ''; }
       } catch (e) {}
     }
@@ -615,6 +620,7 @@ async function ghBackup() {
       console.log('DB backed up to GitHub');
     } else {
       const txt = (await r.text()).slice(0, 200);
+      ghSha = ''; // stale/conflicting sha — refetch on the next attempt instead of failing forever
       console.log('DB backup failed:', r.status, txt);
       console.log('Backup target:', GH_REPO, '/', GH_PATH, 'branch', GH_BRANCH);
       try {
@@ -644,7 +650,7 @@ async function ghBackupUploads() {
     const content = fs.readFileSync(archive).toString('base64');
     if (!ghUploadsSha) {
       try {
-        const g = await fetch(GH_UP_API + '?ref=' + encodeURIComponent(GH_BRANCH), { headers: ghHeaders() });
+        const g = await fetch(GH_UP_API + '?ref=' + encodeURIComponent(GH_BRANCH), { headers: Object.assign(ghHeaders(), { Accept: 'application/vnd.github.object+json' }) });
         if (g.ok) { const j = await g.json(); ghUploadsSha = j.sha || ''; }
       } catch (e) {}
     }
@@ -655,26 +661,41 @@ async function ghBackupUploads() {
       const j = await r.json();
       if (j && j.content && j.content.sha) ghUploadsSha = j.content.sha;
       console.log('Uploads backed up to GitHub');
-    } else { console.log('Uploads backup failed:', r.status, (await r.text()).slice(0, 120)); }
+    } else { ghUploadsSha = ''; console.log('Uploads backup failed:', r.status, (await r.text()).slice(0, 120)); }
   } catch (e) { console.log('Uploads backup failed:', e.message); }
   try { if (fs.existsSync(archive)) fs.unlinkSync(archive); } catch (e) {}
 }
 if (GH_API && GH_TOKEN) {
   setTimeout(() => { ghBackup(); ghBackupUploads(); }, 5000);
   setInterval(() => { ghBackup(); ghBackupUploads(); }, 60 * 1000);
+  // Startup audit: report profile pictures / chat media whose files did not survive a deploy.
+  setTimeout(() => {
+    try {
+      const rows = db.prepare("SELECT avatar FROM users WHERE avatar LIKE '/uploads/%'").all();
+      const missing = rows.filter(r => !fs.existsSync(path.join(UPLOADS, r.avatar.slice('/uploads/'.length)))).length;
+      if (missing) console.log('WARNING: ' + missing + ' profile picture file(s) missing on disk');
+      else if (rows.length) console.log('Profile picture files verified (' + rows.length + ')');
+    } catch (e) {}
+  }, 8000);
 }
 
-// Lightweight presence for the user-only Online User strip (bots included).
+// Lightweight presence for the Messenger people strip: every account (online or not),
+// plus the admin (clicking it opens Messenger but cannot be messaged). No bots here.
 app.get('/api/presence', auth, (req, res) => {
-  const users = db.prepare("SELECT id,username,role,avatar,last_active FROM users WHERE last_active>? AND role='user' ORDER BY last_active DESC").all(Date.now() - 90000)
-    .map(u => ({ id: 'u_' + u.id, name: u.username, type: 'user', online: true, avatar: u.avatar || '/default-avatar.svg' }));
-  const bots = db.prepare('SELECT id,name,status,paused FROM bots ORDER BY name').all()
-    .map(b => {
-      const r = db.prepare('SELECT started_at FROM job_runs WHERE bot_id=? ORDER BY started_at DESC LIMIT 1').get(b.id);
-      const working = !b.paused && b.status !== 'error' && !!r && Date.now() - r.started_at < 24 * 3600 * 1000;
-      return { id: b.id, name: b.name, type: 'bot', online: working, avatar: '/icon-192.png' };
-    });
-  res.json({ members: [...bots, ...users] });
+  const now = Date.now();
+  const onlineOf = u => (now - (u.last_active || 0) < 90000) || isOnline(u.id);
+  const users = db.prepare("SELECT id,username,role,avatar,last_active FROM users WHERE role='user' ORDER BY last_active DESC").all()
+    .map(u => ({ id: 'u_' + u.id, name: u.username, type: 'user', online: onlineOf(u), avatar: u.avatar || '/default-avatar.svg' }));
+  const admins = db.prepare("SELECT id,username,avatar,last_active FROM users WHERE role='admin'").all()
+    .map(a => ({ id: 'a_' + a.id, name: a.username, type: 'admin', online: onlineOf(a), avatar: a.avatar || '/icon-192.png' }));
+  users.sort((x, y) => (y.online ? 1 : 0) - (x.online ? 1 : 0));
+  res.json({ members: [...admins, ...users] });
+});
+
+// Mark the account offline immediately on logout so the strip shows "Offline" (red).
+app.post('/api/auth/logout', auth, (req, res) => {
+  try { db.prepare('UPDATE users SET last_active=0 WHERE id=?').run(req.user.id); } catch (e) {}
+  res.json({ ok: true });
 });
 
 // Public, minimal check so the login screen never suggests an account that no longer exists.
@@ -705,7 +726,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v55' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v56' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [

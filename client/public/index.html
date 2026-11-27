@@ -76,6 +76,8 @@ a{color:var(--b)}
 .feed-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid var(--bd)}
 .feed-actions button,.feed-actions a{border:0;background:none;color:var(--mu);font-size:12px;padding:6px 8px;text-decoration:none;cursor:pointer}
 .feed-actions a{margin-left:auto;color:var(--b)}
+.feed-pager{display:flex;gap:10px;align-items:center;justify-content:center;padding:12px 0 4px}
+.feed-pager .mu{flex:none}
 .skeleton{height:96px;border-radius:12px;background:var(--card);margin-bottom:10px;animation:pulse 1.2s infinite}
 @keyframes pulse{50%{opacity:.45}}
 .toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 10px);background:#1c2431;border:1px solid var(--bd);padding:8px 14px;border-radius:10px;z-index:30;max-width:90%;font-size:13px}
@@ -688,12 +690,19 @@ function nCard(n){
  return `<a class="nw ${n.imp?'i':''}" href="${esc(u)}" target="_blank" rel="noopener"><div class="m" style="margin:0 0 4px;justify-content:space-between"><span class="bd ${n.imp?'i':''}">${n.imp?'Important  '+n.score:'Normal'}</span><span class="mu">${ago(n.t)}</span></div><div><b>${esc(n.title)}</b></div><div class="m">${n.tags.slice(0,3).map(t=>`<span class="bd">${esc(t)}</span>`).join('')}<span class="bd ${n.sent}">${sn}</span><span class="bd ${n.off?'bull':''}">${n.off?'Official':TRUST.test(n.src||'')?'Verified outlet':'Aggregator'}</span><span class="mu" style="margin-left:auto">${esc(n.src)}</span></div></a>`}
 function renderFeed(){
   if(!NW.length){$('#nwc').innerHTML='<div class="skeleton"></div><div class="skeleton"></div>';return}
-  const all=[...NW].sort((a,b)=>b.t-a.t);
-  const list=all.slice(0,feedState.shown);
-  $('#nwc').innerHTML=list.map(feedCard).join('')+(all.length>list.length?'<div class="skeleton"></div>':'<p class="mu">You are all caught up.</p>');
-  loadPresence();
+  const all=[...NW].sort((a,b)=>{
+    const ao=onlineAuthors.has(a.author_id)?1:0, bo=onlineAuthors.has(b.author_id)?1:0;
+    if(ao!==bo)return bo-ao; // give posts from online accounts priority
+    return b.t-a.t;
+  });
+  const per=feedState.perPage,pages=Math.max(1,Math.ceil(all.length/per));
+  if(feedState.page>pages)feedState.page=pages;
+  const list=all.slice((feedState.page-1)*per,feedState.page*per);
+  $('#nwc').innerHTML=list.map(feedCard).join('')+(pages>1?`<div class="feed-pager"><button type="button" class="btn btn-ghost" ${feedState.page<=1?'disabled':''} onclick="feedPage(${feedState.page-1})">Previous</button><span class="mu">Page ${feedState.page} of ${pages}</span><button type="button" class="btn btn-ghost" ${feedState.page>=pages?'disabled':''} onclick="feedPage(${feedState.page+1})">Next</button></div>`:'<p class="mu">You are all caught up.</p>');
 }
-const feedState={shown:10};
+const feedState={perPage:10,page:1};
+const onlineAuthors=new Set();
+function feedPage(p){feedState.page=Math.max(1,p);renderFeed();const el=document.getElementById('nwc');if(el)el.scrollTop=0}
 function userRole(){return typeof USER!=='undefined'&&USER&&USER.role==='user'}
 function sourceAvatar(n){
   const colors=['#3b82f6','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#ef4444'];
@@ -707,20 +716,18 @@ function feedCard(n){
   return `<article class="feed-card">
     <div class="feed-head">${sourceAvatar(n)}<div style="flex:1"><b>${esc(n.src||'Source')}</b><br><small>${ago(n.t)}</small></div><span class="tag">${n.imp?'Important':'Update'}</span></div>
     <h3 style="margin:8px 0 4px">${esc(n.title)}</h3><p class="feed-excerpt">${esc(excerpt)}</p>
-    ${img?`<img class="feed-img" loading="lazy" src="${esc(img)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`:''}
-    <div class="feed-fallback" style="display:${img?'none':'flex'}">${sourceAvatar(n)}<span>Image unavailable</span></div>
-    <div class="feed-actions"><button type="button" data-act="like">Like</button><button type="button" data-act="comment">Comment</button><button type="button" data-act="share">Share</button><a href="${esc(u)}" target="_blank" rel="noopener">Read more</a></div>
+    ${img?`<img class="feed-img" loading="lazy" src="${esc(img)}" onerror="this.remove()">`:''}
+    <div class="feed-actions"><a href="${esc(u)}" target="_blank" rel="noopener">Read more</a></div>
   </article>`;
 }
-async function loadPresence(){
-  const strip=document.getElementById('onlineUserStrip');
-  if(!strip||!userRole()||S.tab!=='nw'){if(strip)strip.style.display='none';return}
+async function loadFeedAuthors(){
+  if(!userRole())return;
   try{
     const r=await fetch('/api/presence',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}});
-    const j=await r.json();const members=j.members||[];
-    strip.style.display='block';
-    strip.innerHTML='<div class="online-title">Online User</div><div class="online-row">'+(members.map(m=>`<button type="button" class="online-item" ${m.type==='bot'?'data-bot="1"':''} title="${esc(m.name)}"><img src="${esc(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${esc(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<i class="${m.online?'grn':'gry'}"></i></button>`).join('')||'<small>No one online</small>')+'</div>';
-  }catch(e){strip.style.display='none'}
+    const j=await r.json();onlineAuthors.clear();
+    (j.members||[]).filter(m=>m.type==='user'&&m.online).forEach(m=>onlineAuthors.add(Number(String(m.id).replace('u_',''))));
+    renderFeed(); // re-order so online accounts (if they post) come first
+  }catch(e){}
 }
 let feedBound=false;
 function bindFeed(){
@@ -728,9 +735,6 @@ function bindFeed(){
   const el=document.getElementById('nwc');let y0=0;
   el.addEventListener('touchstart',e=>{if(el.scrollTop<=0)y0=e.touches[0].clientY},{passive:true});
   el.addEventListener('touchend',e=>{if(y0&&e.changedTouches[0].clientY-y0>90){y0=0;pollNews()}else y0=0},{passive:true});
-  el.addEventListener('scroll',()=>{
-    if(el.scrollTop+el.clientHeight>=el.scrollHeight-160&&feedState.shown<NW.length){feedState.shown+=10;renderFeed()}
-  },{passive:true});
 }
 function renderNews(){
  if(userRole()){bindFeed();return renderFeed()}
@@ -957,7 +961,7 @@ sessions();setInterval(sessions,30000);setInterval(poll,3000);setInterval(chg,10
 setInterval(()=>{if(S.tab==='mk'&&S.mk==='stk')stocks()},10000);
 $('#na').checked=LS('na',true);$('#na').onchange=e=>SV('na',e.target.checked);
 $('#nn').checked=LS('nn',false);$('#nn').onchange=e=>SV('nn',e.target.checked);
-setInterval(pollNews,60000);setInterval(()=>{if(S.tab==='nw'&&userRole())loadPresence()},10000);
+setInterval(pollNews,60000);setInterval(()=>{if(S.tab==='nw'&&userRole())loadFeedAuthors()},30000);
 $('#hist').addEventListener('click',e=>{if(e.target.closest('button'))return;const c=e.target.closest('[data-hv]');if(c)openHist(c.dataset.hv)});
 const BAD=['MANYUCOINUSDT','ZBCNUSDT','MANYUUSDT'];
 HS=HS.filter(h=>!BAD.includes(h.sym));SV('hist',HS);P.open=P.open.filter(t=>!BAD.includes(t.sym));P.closed=P.closed.filter(t=>!BAD.includes(t.sym));SV('paper',P);
@@ -1053,15 +1057,17 @@ window.syncTradeLogs=syncTradeLogs;
     <div><h3 style="margin:0">Messenger</h3><small class="muted">Your private conversations</small></div>
     <button class="icon-btn" aria-label="Close" onclick="document.getElementById('messengerModal').classList.add('hidden');closeChatView()">×</button></div>
   <div id="friendStrip" class="friend-strip" aria-label="People"></div>
+  <div id="msgNotice" class="msg-note" style="display:none"></div>
   <div class="msg-layout">
     <div class="msg-inbox"><h4 class="section-title">Chat List</h4><div id="convList"><small>Loading conversations...</small></div></div>
   </div>
   <div class="chat-full" id="chatFull"></div>
 </div></div>
-<div id="mediaViewer" class="modal hidden"><div class="sheet" style="max-width:92vw;text-align:center">
-  <button class="icon-btn" style="float:right" aria-label="Close" onclick="closeMedia()">×</button>
-  <div style="overflow:auto;max-height:78vh" id="mediaViewport"><img id="mediaViewImg" src="" style="max-width:100%;max-height:78vh;border-radius:8px;transform-origin:center" alt=""></div>
-  <div class="viewer-controls"><button class="btn btn-ghost" onclick="zoomMedia(-1)" aria-label="Zoom out">−</button><button class="btn btn-ghost" onclick="zoomMedia(1)" aria-label="Zoom in">+</button><button class="btn btn-ghost" onclick="downloadMedia()">Download</button></div>
+<div id="mediaViewer" class="modal hidden"><div class="sheet media-sheet">
+  <div class="ui-head"><div><h3 style="margin:0">Attachment</h3><small class="muted">Fits your screen · use Download to save</small></div>
+    <button class="icon-btn" aria-label="Close" onclick="closeMedia()">×</button></div>
+  <div class="media-body" id="mediaViewport"><img id="mediaViewImg" src="" alt=""></div>
+  <div class="viewer-controls"><button class="btn btn-ghost" onclick="closeMedia()">Back to conversation</button><button class="btn btn-primary" onclick="downloadMedia()">Download</button></div>
 </div></div>
 <div id="adminModal" class="modal hidden"><div class="sheet ui-sheet">
   <div class="ui-head">
