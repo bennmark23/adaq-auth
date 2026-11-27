@@ -230,6 +230,7 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
   app.post('/api/chat/conversations/:id/media', ...A, chatUpload.single('file'), async (req, res) => {
     const id = Number(req.params.id);
     assertConversationAccess(db, req.user.id, id);
+    const conv = db.prepare('SELECT * FROM chat_conversations WHERE id=?').get(id);
     if (!rateOk(req.user.id)) return res.status(429).json({ error: 'Too many uploads. Slow down.' });
     if (!req.file) return res.status(400).json({ error: 'No file' });
     const f = req.file;
@@ -261,6 +262,15 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     db.prepare('UPDATE chat_members SET unread_count=unread_count+1 WHERE conversation_id=? AND user_id<>?').run(id, req.user.id);
     const msg = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(info.lastInsertRowid));
     emitChat(broadcast, db, id, 'chat_message', msg);
+    if (global.adaqBackupUploads) global.adaqBackupUploads();
+    // Match the text-message path: notify recipients and refresh their floating bubble.
+    const preview = kind === 'image' ? 'Image' : kind === 'video' ? 'Video' : kind === 'voice' ? 'Voice message' : 'Attachment';
+    for (const uid of participantIds(db, id)) {
+      if (uid === req.user.id) continue;
+      const total = db.prepare('SELECT COALESCE(SUM(unread_count),0) c FROM chat_members WHERE user_id=?').get(uid).c;
+      broadcast('unread', { unread: total, to_user: uid, from_user: req.user.id, conversation_id: id }, u => u === uid);
+      if (global.adaqPushNotify && conv.kind !== 'admin_notice') global.adaqPushNotify(uid, 'New message', preview);
+    }
     res.json({ message: msg, attachment: { path: url, thumbnail: thumb } });
   });
   app.get('/api/chat/unread', ...A, (req, res) => {

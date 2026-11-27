@@ -28,6 +28,8 @@ body{background:var(--bg);color:var(--tx)}
 #msgBubble img{width:44px;height:44px;border-radius:50%;object-fit:cover}
 #msgBubble .icon{width:26px;height:26px;color:var(--icon-active)}
 .bubble-badge{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#ea3943;color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center}
+@keyframes bubblePop{0%{transform:scale(1)}45%{transform:scale(1.16)}100%{transform:scale(1)}}
+#msgBubble.pop{animation:bubblePop .45s ease}
 @media(max-width:600px){#msgBubble{width:52px;height:52px}}
 @media(prefers-reduced-motion:reduce){#msgBubble{transition:none}}
 .card{background:var(--card);border:1px solid var(--bd)}

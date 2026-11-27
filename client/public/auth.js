@@ -691,7 +691,7 @@ function connectWS() {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.type === 'announcement') { loadAnnouncements(); }
     if (m.type === 'message') { loadMessages(); }
-    if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
+    if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read' || m.type === 'unread') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
   };
   ws.onclose = () => { setTimeout(connectWS, 3000); };
 }
@@ -1201,7 +1201,7 @@ function sendChatFile(provided) {
   xhr.onload = () => {
     CHAT_XHR = null;
     if (status) { status.style.display = 'none'; status.onclick = null; }
-    if (xhr.status === 200) { if (input) input.value = ''; if (CHAT_ID) loadChatMessages(CHAT_ID); loadConversations(); }
+    if (xhr.status === 200) { if (input) input.value = ''; if (CHAT_ID) loadChatMessages(CHAT_ID); loadConversations(); if (typeof window.refreshUnread === 'function') window.refreshUnread(); if (typeof window.updateBubble === 'function') window.updateBubble(); }
     else { try { alert(JSON.parse(xhr.responseText).error || 'Upload failed'); } catch (e) { alert('Upload failed'); } }
   };
   xhr.onerror = () => { CHAT_XHR = null; if (status) status.style.display = 'none'; alert('Upload failed'); };

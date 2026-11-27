@@ -3,7 +3,7 @@
 (function () {
   const KEY = 'adaq_bubble_pos';
   const el = () => document.getElementById('msgBubble');
-  let dragging = false, moved = false, x0 = 0, y0 = 0, bx = 0, by = 0, lastX = 0, lastY = 0, idleT = 0;
+  let dragging = false, moved = false, x0 = 0, y0 = 0, bx = 0, by = 0, lastX = 0, lastY = 0, idleT = 0, lastBadgeCount = null;
   function bounds() {
     const b = el().getBoundingClientRect();
     const pad = 8, safe = 12;
@@ -76,8 +76,13 @@
         const n = Math.max(0, Number(last.unread || unread || 0));
         img.src = last.avatar || '/default-avatar.svg'; img.style.display = 'block'; glyph.style.display = 'none';
         badge.style.display = n > 0 ? 'flex' : 'none'; badge.textContent = n > 99 ? '99+' : String(n);
+        if (lastBadgeCount !== null && n > lastBadgeCount) {
+          b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+          clearTimeout(window.__bubblePop); window.__bubblePop = setTimeout(() => b.classList.remove('pop'), 500);
+        }
+        lastBadgeCount = n;
       } else {
-        img.style.display = 'none'; glyph.style.display = 'block'; badge.style.display = 'none';
+        img.style.display = 'none'; glyph.style.display = 'block'; badge.style.display = 'none'; lastBadgeCount = 0;
       }
     } catch (e) {}
   }
