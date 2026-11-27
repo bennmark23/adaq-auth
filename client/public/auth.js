@@ -577,7 +577,7 @@ async function loadFriendStrip(){
           const adminConv = (r.conversations || []).find(c => c.kind === 'admin_notice');
           if (adminConv) openChat(adminConv.id);
         } catch (err) {}
-        showMsgNotice('You are not allowed to reply the Admin');
+        if (!USER || USER.role !== 'admin') showMsgNotice('You are not allowed to reply the Admin');
         return;
       }
       const uid=b.dataset.uid;if(!uid)return;
@@ -698,7 +698,7 @@ function connectWS() {
     let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.type === 'announcement') { loadAnnouncements(); }
     if (m.type === 'message') { loadMessages(); }
-    if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read' || m.type === 'unread') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
+    if (m.type === 'chat_message' || m.type === 'chat_typing' || m.type === 'chat_read' || m.type === 'unread' || m.type === 'chat_updated' || m.type === 'chat_deleted') { window.dispatchEvent(new CustomEvent('adaq:chat', { detail: m })); }
   };
   ws.onclose = () => { setTimeout(connectWS, 3000); };
 }
@@ -1184,6 +1184,7 @@ async function deleteOwnMessage(id) {
   if (mediaNode) bubble.appendChild(mediaNode.cloneNode(true));
   bubble.insertAdjacentHTML('afterbegin', `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>`);
   if (scroll) scroll.scrollTop = top;
+  loadConversations(); // refresh only the chat list preview, never the open chat
 }
 function showMsgNotice(text) {
   const n = document.getElementById('msgNotice'); if (!n) return;
@@ -1365,6 +1366,7 @@ window.addEventListener('adaq:chat', e => {
   }
   if (t && t.type === 'presence') { loadFriendStrip(); loadConversations(); }
   if (t && t.type === 'chat_read' && CHAT_ID) loadChatMessages(CHAT_ID);
+  if (t && t.type === 'chat_updated') { loadConversations(); }
   if (t && t.type === 'chat_deleted' && t.data && t.data.conversation_id === CHAT_ID) {
     closeChatView();
   }

@@ -187,6 +187,7 @@ function publicMember(db, conv, meId) {
   const rows = db.prepare('SELECT m.user_id,m.role,u.username,u.avatar FROM chat_members m LEFT JOIN users u ON u.id=m.user_id WHERE m.conversation_id=?').all(conv.id);
   const other = rows.find(r => r.user_id !== meId);
   const mine = rows.find(r => r.user_id === meId);
+  const me = db.prepare('SELECT role FROM users WHERE id=?').get(meId);
   return {
     id: conv.id, type: conv.type, kind: conv.kind || 'direct', name: conv.type === 'group' ? conv.name : (other ? other.username : ''),
     avatar: conv.type === 'group' ? conv.avatar : (other ? other.avatar : ''),
@@ -195,7 +196,8 @@ function publicMember(db, conv, meId) {
     unread: mine ? mine.unread_count : 0,
     last_message_at: conv.last_message_at, last_message_preview: conv.last_message_preview,
     online: other ? (() => { const u = db.prepare('SELECT last_active FROM users WHERE id=?').get(other.user_id); return !!(u && Date.now() - (u.last_active || 0) < 90000); })() : false,
-    canReply: conv.kind !== 'admin_notice' && (conv.type !== 'direct' || !other || (other.username !== 'admin' && !isBotUsername(other.username)))
+    // Admins may reply in their own notice chats; users may not reply to the Admin.
+    canReply: (conv.kind !== 'admin_notice' || (me && me.role === 'admin')) && (conv.type !== 'direct' || !other || (other.username !== 'admin' && !isBotUsername(other.username)))
   };
 }
 function participantIds(db, convId) {
@@ -331,7 +333,7 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     const check = canSend(db, req.user, target);
     if (!check.ok) return res.status(403).json({ error: check.error });
     const existing = db.prepare(`SELECT c.id FROM chat_conversations c JOIN chat_members a ON a.conversation_id=c.id AND a.user_id=?
-      JOIN chat_members b ON b.conversation_id=c.id AND b.user_id=? WHERE c.type='direct'`).get(req.user.id, targetId);
+      JOIN chat_members b ON b.conversation_id=c.id AND b.user_id=? WHERE c.type='direct' AND COALESCE(c.kind,'direct')='direct'`).get(req.user.id, targetId);
     let id = existing ? existing.id : null;
     if (!id) {
       const now = Date.now();
@@ -410,6 +412,15 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     emitChat(broadcast, db, m.conversation_id, 'chat_updated', out);
     res.json({ message: out });
   });
+  const previewOf = m => {
+    if (!m) return '';
+    if (m.deleted_for_everyone) return 'Deleted message';
+    if (m.kind === 'text') return String(m.body || '').slice(0, 120);
+    if (m.kind === 'image') return 'Image';
+    if (m.kind === 'video') return 'Video';
+    if (m.kind === 'voice') return 'Voice message';
+    return m.kind === 'file' ? 'File' : 'Attachment';
+  };
   app.delete('/api/chat/messages/:id', ...A, (req, res) => {
     const m = db.prepare('SELECT * FROM chat_messages WHERE id=?').get(Number(req.params.id));
     if (!m) return res.status(404).json({ error: 'Not found' });
@@ -418,6 +429,10 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
     if (mode === 'everyone') {
       if (m.sender_id !== req.user.id) return res.status(403).json({ error: 'Only the sender can remove for everyone' });
       db.prepare('UPDATE chat_messages SET deleted_for_everyone=1,body=? WHERE id=?').run('', m.id);
+      // Keep the chat list honest: one deleted message becomes "Deleted message",
+      // otherwise the newest remaining message is shown.
+      const latest = db.prepare('SELECT * FROM chat_messages WHERE conversation_id=? ORDER BY created_at DESC,id DESC LIMIT 1').get(m.conversation_id);
+      db.prepare('UPDATE chat_conversations SET last_message_preview=? WHERE id=?').run(previewOf(latest), m.conversation_id);
       emitChat(broadcast, db, m.conversation_id, 'chat_updated', { id: m.id, deleted_for_everyone: 1 });
     } else {
       db.prepare('INSERT OR REPLACE INTO chat_message_deletes (message_id,user_id,created_at) VALUES (?,?,?)').run(m.id, req.user.id, Date.now());
