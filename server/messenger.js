@@ -211,16 +211,19 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
   const JWT_SECRET = process.env.JWT_SECRET || 'adaq-jwt-change-me-in-prod';
   app.use('/chat_uploads', (req, res) => {
     const file = req.path.replace(/^\/+/, '');
-    if (!/^[a-f0-9]{24}\.[a-zA-Z0-9]{1,10}(?:_thumb\.jpg)?$/.test(file)) return res.status(400).end();
+    if (!/^(?:[a-f0-9]{24}\.[a-zA-Z0-9]{1,10}|[a-f0-9]{24}_thumb\.jpg)$/.test(file)) return res.status(400).end();
     const token = (req.query.token || (req.headers.authorization || '').replace(/^Bearer\s+/, '') || '');
     let user = null;
     try { const p = jwt.verify(token, JWT_SECRET); user = db.prepare('SELECT id FROM users WHERE id=?').get(p.id); } catch (e) {}
     if (!user) return res.status(401).end();
-    const a = db.prepare("SELECT a.*,m.conversation_id FROM chat_attachments a JOIN chat_messages m ON m.id=a.message_id WHERE a.path=?").get('/chat_uploads/' + file);
+    const full = '/chat_uploads/' + file;
+    const a = db.prepare("SELECT a.*,m.conversation_id FROM chat_attachments a JOIN chat_messages m ON m.id=a.message_id WHERE a.path=? OR a.thumbnail=?").get(full, full);
     if (!a) return res.status(404).end();
     try { assertConversationAccess(db, user.id, a.conversation_id); } catch (e) { return res.status(403).end(); }
     res.set('x-content-type-options', 'nosniff');
-    res.type(a.mime || 'application/octet-stream');
+    // Thumbnails are always written as JPEG; serve them with the matching type.
+    // A wrong declared type (e.g. image/png for a JPEG thumbnail) makes browsers reject the image.
+    res.type(file.endsWith('_thumb.jpg') ? 'image/jpeg' : (a.mime || 'application/octet-stream'));
     if (req.query.download) res.set('content-disposition', 'attachment; filename="attachment"');
     res.sendFile(path.join(CHAT_UPLOADS, file));
   });
@@ -249,7 +252,9 @@ function registerRoutes(app, db, auth, requireRole, broadcast) {
       } catch (e) { console.log('thumb failed:', e.message); }
     }
     const now = Date.now();
-    const info = db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, kind, url, now);
+    // Media messages carry their location in chat_attachments; the body must stay empty
+    // so the raw /chat_uploads/... path is never rendered as message text.
+    const info = db.prepare('INSERT INTO chat_messages (conversation_id,sender_id,kind,body,created_at) VALUES (?,?,?,?,?)').run(id, req.user.id, kind, '', now);
     db.prepare('INSERT INTO chat_attachments (message_id,kind,path,mime,name,size,thumbnail,created_at) VALUES (?,?,?,?,?,?,?,?)')
       .run(Number(info.lastInsertRowid), kind, url, mime, String(f.originalname || '').slice(0, 160), f.size, thumb || null, now);
     db.prepare('UPDATE chat_conversations SET last_message_at=?,last_message_preview=? WHERE id=?').run(now, kind === 'file' ? 'File' : kind, id);

@@ -1067,12 +1067,13 @@ async function loadChatMessages(id) {
       }
       const mine = m.sender_id === (USER ? USER.id : 0);
       const deleted = !!m.deleted_for_everyone;
-      const body = deleted ? `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>` : escapeHtml(m.body || '');
+      // Attachments never render the stored body (legacy rows contain the raw upload path).
+      const body = deleted ? `<span class="deleted-msg">${adaqIcon('circle')} Deleted message</span>` : (m.attachment ? '' : escapeHtml(m.body || ''));
       const reacts = (m.reactions || []).map(x => `<span class="react">${escapeHtml(x.emoji)} ${x.n}</span>`).join('');
-      const media = !deleted && m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
+      const media = !deleted && m.attachment ? (m.attachment.kind === 'image' ? `<img class="bubble-media" src="${esc(fileUrl(m.attachment.thumbnail || m.attachment.path))}" onerror="chatImgError(this,'${escapeHtml(m.attachment.path)}')" onclick="viewMedia('${escapeHtml(m.attachment.path)}')" alt="Image attachment">` : m.attachment.kind === 'video' ? `<video class="bubble-media" controls src="${esc(fileUrl(m.attachment.path))}"></video>` : m.attachment.kind === 'voice' ? `<audio controls src="${esc(fileUrl(m.attachment.path))}"></audio>` : `<a class="file-link" href="${esc(fileUrl(m.attachment.path))}&download=1" target="_blank" rel="noopener">${adaqIcon('attach')} ${escapeHtml(m.attachment.name || 'File')}</a>`) : '';
       const menu = (mine && !deleted) ? `<button type="button" class="msg-menu" aria-label="Message options" onclick="toggleMsgMenu(event,${m.id})">${adaqIcon('dots')}</button>` : '';
       return sep + `<div class="msg-wrap ${mine ? 'mine' : ''}">
-        <div class="bubble ${mine ? 'mine' : ''}" data-id="${m.id}">${menu}${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at && !deleted ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
+        <div class="bubble ${mine ? 'mine' : ''}${media ? ' has-media' : ''}" data-id="${m.id}">${menu}${m.reply_to ? '<div class="quote">Replying to a message</div>' : ''}${media}${body}${m.edited_at && !deleted ? '<small>Edited</small>' : ''}${reacts ? `<div class="reacts">${reacts}</div>` : ''}</div>
         <small class="bubble-time">${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}${m.seen ? ' · Seen' : ''}</small>
       </div>`;
     }).join('');
@@ -1168,6 +1169,11 @@ function showMsgNotice(text) {
   n.textContent = text; n.style.display = 'block';
   clearTimeout(window.__msgNotice);
   window.__msgNotice = setTimeout(() => { n.style.display = 'none'; }, 3500);
+}
+function chatImgError(img, fallback) {
+  // First try the original image when a thumbnail is missing or unreadable.
+  if (!img.dataset.fallback) { img.dataset.fallback = '1'; img.src = fileUrl(fallback); return; }
+  img.style.display = 'none'; // never leave a broken-image/white panel in the chat
 }
 function viewMedia(url) {
   MEDIA_URL=url;MEDIA_SCALE=1;MEDIA_X=0;MEDIA_Y=0;

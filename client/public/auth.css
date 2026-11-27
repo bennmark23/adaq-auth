@@ -151,7 +151,9 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .bubble small{display:block;font-size:9px;opacity:.7;margin-top:2px}
 .bubble-time{display:block;font-size:9px;color:var(--mu);margin-top:2px;text-align:left}
 .msg-wrap.mine .bubble-time{text-align:right}
-.bubble-media{max-width:100%;max-height:220px;border-radius:9px;display:block;margin:4px 0;cursor:pointer}
+.bubble.has-media{padding:4px}
+.bubble.has-media.mine{background:#16c784;color:#04140d}
+.bubble-media{max-width:100%;max-height:220px;width:auto;height:auto;object-fit:contain;background:transparent;border-radius:9px;display:block;margin:0;cursor:pointer}
 .viewer-controls{display:flex;gap:8px;justify-content:center;margin-top:8px}
 #mediaViewer .sheet.media-sheet{width:min(720px,96vw);max-width:none;height:min(80vh,760px);padding:14px;display:flex;flex-direction:column;overflow:hidden}
 .media-body{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
