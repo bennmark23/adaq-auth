@@ -269,8 +269,9 @@ async function afterLogin() {
   const pn = document.getElementById('profileName'); if (pn) pn.textContent = USER.username;
   const tu = document.getElementById('topUsername'); if (tu) tu.textContent = USER.username;
   const ta = document.getElementById('topAvatar'); if (ta) { ta.onerror = () => { ta.onerror = null; ta.src = '/default-avatar.svg'; }; ta.src = USER.avatar || '/default-avatar.svg'; }
-  // connect websocket
+  // connect websocket and report foreground immediately
   connectWS();
+  api('/activity', { method: 'POST', body: { action: 'heartbeat' } }).catch(() => {});
   // report filter handlers
   const rf = document.getElementById('reportFilter');
   const rtf = document.getElementById('reportTypeFilter');
@@ -708,7 +709,9 @@ function markOffline() {
 }
 function resumeOnline() {
   leaving = false;
-  if (TOKEN && (!ws || ws.readyState > 1)) connectWS();
+  if (!TOKEN) return;
+  if (!ws || ws.readyState > 1) connectWS();
+  api('/activity', { method: 'POST', body: { action: 'heartbeat' } }).catch(() => {});
 }
 function connectWS() {
   if (!TOKEN) return;

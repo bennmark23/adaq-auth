@@ -270,6 +270,7 @@ app.use('/api', (req, res, next) => {
 
 // WebSocket clients
 const clients = new Map(); // userId -> Set of ws
+const closingSoon = new Map(); // userId -> timestamp of a tab/app close beacon
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 wss.on('connection', (ws, req) => {
@@ -285,7 +286,18 @@ wss.on('connection', (ws, req) => {
   ws.on('pong', () => { ws.isAlive = true; });
   broadcast('presence', { user_id: user.id, online: true });
   ws.on('close', () => {
-    const s = clients.get(user.id); if (s) { s.delete(ws); if (!s.size) { clients.delete(user.id); broadcast('presence', { user_id: user.id, online: false }); } }
+    const s = clients.get(user.id);
+    if (!s) return;
+    s.delete(ws);
+    if (!s.size) {
+      clients.delete(user.id);
+      // The close beacon can arrive just before this socket finishes closing.
+      if (Date.now() - (closingSoon.get(user.id) || 0) < 15000) {
+        try { db.prepare('UPDATE users SET last_active=0 WHERE id=?').run(user.id); } catch (e) {}
+        closingSoon.delete(user.id);
+      }
+      broadcast('presence', { user_id: user.id, online: false });
+    }
   });
   ws.send(JSON.stringify({ type: 'hello', userId: user.id }));
 });
@@ -311,6 +323,7 @@ function broadcast(type, data, filterFn) {
 function isOnline(uid) { return clients.has(uid) && clients.get(uid).size > 0; }
 // Presence is driven by live WebSocket sessions, never by a stale heartbeat.
 function disconnectUser(uid, clearLastActive) {
+  closingSoon.delete(uid);
   if (clearLastActive) { try { db.prepare('UPDATE users SET last_active=0 WHERE id=?').run(uid); } catch (e) {} }
   const set = clients.get(uid);
   if (set) { for (const w of set) { try { w.close(); } catch (e) {} } set.clear(); clients.delete(uid); }
@@ -720,7 +733,10 @@ if (GH_API && GH_TOKEN) {
 // Lightweight presence for the Messenger people strip: every account (online or not),
 // plus the admin (clicking it opens Messenger but cannot be messaged). No bots here.
 app.get('/api/presence', auth, (req, res) => {
-  const onlineOf = u => isOnline(u.id);
+  const now = Date.now();
+  // Live socket wins; a recent foreground heartbeat covers slow/cold WS starts.
+  // Heartbeats stop and last_active is cleared the moment the tab/app closes.
+  const onlineOf = u => isOnline(u.id) || (now - (u.last_active || 0) < 45000);
   const users = db.prepare("SELECT id,username,role,avatar,last_active FROM users WHERE role='user' ORDER BY last_active DESC").all()
     .map(u => ({ id: 'u_' + u.id, name: u.username, type: 'user', online: onlineOf(u), avatar: u.avatar || '/default-avatar.svg' }));
   const admins = db.prepare("SELECT id,username,avatar,last_active FROM users WHERE role='admin'").all()
@@ -741,7 +757,10 @@ app.post('/api/presence/offline', (req, res) => {
   let user = null;
   try { const p = jwt.verify(token, JWT_SECRET); user = db.prepare('SELECT id FROM users WHERE id=?').get(p.id); } catch (e) {}
   if (!user) return res.status(401).json({ error: 'Invalid token' });
-  disconnectUser(user.id, true);
+  // Another open tab/app may still be live: never force that user offline.
+  // Keep a short-lived marker so the final socket close can clear last_active.
+  closingSoon.set(user.id, Date.now());
+  if (!isOnline(user.id)) disconnectUser(user.id, true);
   res.json({ ok: true });
 });
 
@@ -773,7 +792,7 @@ app.post('/api/push/subscribe', auth, (req, res) => {
   res.json({ ok: true });
 });
 app.get('/api/config/limits', auth, (req, res) => res.json({ max_file_mb: MAX_FILE_MB, max_voice_seconds: MAX_VOICE_SECONDS, max_files_day: MAX_FILES_DAY }));
-  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v69' }));
+  app.get('/api/health', (req, res) => res.json({ ok: true, adaq: true, version: '2026-11-25-v70' }));
 
 // ---- Market / news / external API proxy (browser-side CORS-safe) ----
 const MARKET_PROXIES = [
