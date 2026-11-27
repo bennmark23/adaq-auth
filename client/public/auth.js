@@ -1129,6 +1129,14 @@ async function openChat(id) {
   loadConversations();
   if (typeof window.updateBubble === 'function') window.updateBubble();
 }
+// Open the conversation shown on the floating bubble without flashing the list first.
+async function openDirectConversation(id) {
+  const modal = document.getElementById('messengerModal');
+  if (!modal || !id) return;
+  modal.classList.remove('hidden');
+  await openChat(Number(id));
+}
+window.openDirectConversation = openDirectConversation;
 function closeChatView() {
   CHAT_ID = null;
   const modal = document.getElementById('messengerModal');

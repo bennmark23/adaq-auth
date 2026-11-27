@@ -46,6 +46,11 @@
     if (Math.abs(dx) > 8 || Math.abs(dy) > 8) moved = true;
     if (moved) { lastX = bx + dx; lastY = by + dy; place(lastX, lastY, false); }
   }
+  function openFromBubble() {
+    const id = Number(el().dataset.convId || 0);
+    if (id && typeof window.openDirectConversation === 'function') { window.openDirectConversation(id); return; }
+    if (typeof window.openMessenger === 'function') window.openMessenger();
+  }
   function onUp(e) {
     if (!dragging) return;
     dragging = false;
@@ -54,7 +59,7 @@
       const half = el().getBoundingClientRect().width / 2 || 28;
       const left = lastX + half < innerWidth / 2;
       place(left ? bounds().minX : bounds().maxX, lastY, true);
-    } else if (typeof window.openMessenger === 'function') window.openMessenger();
+    } else openFromBubble();
     wake();
   }
   async function updateBubble() {
@@ -76,6 +81,8 @@
         const n = Math.max(0, Number(last.unread || unread || 0));
         img.src = last.avatar || '/default-avatar.svg'; img.style.display = 'block'; glyph.style.display = 'none';
         badge.style.display = n > 0 ? 'flex' : 'none'; badge.textContent = n > 99 ? '99+' : String(n);
+        b.dataset.convId = String(last.id || '');
+        b.setAttribute('aria-label', last.name ? 'Open conversation with ' + String(last.name) : 'Messenger');
         if (lastBadgeCount !== null && n > lastBadgeCount) {
           b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
           clearTimeout(window.__bubblePop); window.__bubblePop = setTimeout(() => b.classList.remove('pop'), 500);
@@ -83,6 +90,8 @@
         lastBadgeCount = n;
       } else {
         img.style.display = 'none'; glyph.style.display = 'block'; badge.style.display = 'none'; lastBadgeCount = 0;
+        delete b.dataset.convId;
+        b.setAttribute('aria-label', 'Messenger');
       }
     } catch (e) {}
   }
@@ -96,7 +105,7 @@
     b.addEventListener('pointerup', onUp);
     b.addEventListener('pointercancel', onUp);
     b.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (typeof window.openMessenger === 'function') window.openMessenger(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFromBubble(); }
       const r = b.getBoundingClientRect(), step = 24;
       if (e.key === 'ArrowLeft') place(r.left - step, r.top, true);
       if (e.key === 'ArrowRight') place(r.left + step, r.top, true);
