@@ -198,6 +198,7 @@ function publicMember(db, conv, meId) {
     otherId: other ? other.user_id : null,
     pinned: !!(mine && mine.pinned), muted: !!(mine && mine.muted), archived: !!(mine && mine.archived),
     unread: mine ? mine.unread_count : 0,
+    message_count: db.prepare('SELECT COUNT(*) c FROM chat_messages WHERE conversation_id=? AND deleted_for_everyone=0').get(conv.id).c,
     last_message_at: conv.last_message_at, last_message_preview: conv.last_message_preview,
     online: other ? liveOnline(other.user_id, other.last_active) : false,
     // Admins may reply in their own notice chats; users may not reply to the Admin.

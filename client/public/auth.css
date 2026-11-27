@@ -127,6 +127,7 @@ button,select,input{background:var(--card);color:var(--tx);border:1px solid var(
 .conv-item .meta small{display:block;color:var(--mu);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .conv-item .dot{width:8px;height:8px;border-radius:50%;background:#16c784;flex:none}
 .conv-item .unread{min-width:18px;height:18px;border-radius:9px;background:#ea3943;color:#fff;font-size:10px;display:inline-flex;align-items:center;justify-content:center}
+.conv-item .msg-count{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bg);color:var(--mu);font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .presence{font-size:9px;color:var(--mu);flex:none}
 .presence.on{color:#16c784}.presence.off{color:#ea3943}
 .msg-thread{display:flex;flex-direction:column;min-height:0;overflow:hidden}

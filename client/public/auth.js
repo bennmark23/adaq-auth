@@ -574,7 +574,12 @@ function applyPresence(userId, online) {
   const peer = document.querySelector('.chat-peer[data-uid="' + id + '"]');
   if (peer) {
     const dot = peer.querySelector('i'); if (dot) dot.className = online ? 'on' : 'off';
-    const status = document.querySelector('.msg-head > small'); if (status) status.textContent = online ? 'Online' : 'Offline';
+    const status = document.querySelector('.msg-head > small');
+    if (status) {
+      const parts = status.textContent.split(' · ');
+      const tail = parts.length > 1 ? parts.slice(1).join(' · ') : '';
+      status.textContent = (online ? 'Online' : 'Offline') + (tail ? ' · ' + tail : '');
+    }
   }
 }
 async function loadFriendStrip(){
@@ -1061,7 +1066,7 @@ window.announcePrev = announcePrev;
 window.loadJournal = loadJournal; window.loadAdmin = loadAdmin; window.createInvite = createInvite;
 window.sendAnnouncement = sendAnnouncement; window.sendMessage = sendMessage; window.loadMessages = loadMessages;
 // ---- In-house Messenger (Phase 5) ----
-let CHAT_ID = null;
+let CHAT_ID = null, convSeq = 0;
 async function refreshUnread() {
   const badge = document.getElementById('msgUnread');
   if (!badge) return;
@@ -1083,16 +1088,33 @@ async function openMessenger() {
   await loadConversations(); loadFriendStrip();
   refreshUnread();
 }
+// Instant ordering/preview update while the API refresh is in flight.
+function applyLiveConversation(m) {
+  if (!m) return;
+  const id = Number(m.conversation_id) || 0;
+  const list = document.getElementById('convList');
+  const item = list && id ? list.querySelector('.conv-item[data-id="' + id + '"]') : null;
+  if (!item) return;
+  const small = item.querySelector('.meta small');
+  if (small) small.textContent = m.attachment ? 'Attachment' : (String(m.body || '').slice(0, 120) || 'No messages yet');
+  const count = item.querySelector('.msg-count');
+  if (count) count.textContent = String((Number(count.textContent) || 0) + 1);
+  const pinned = list.querySelector('.conv-item.pinned');
+  if (pinned) list.insertBefore(item, pinned.nextSibling);
+  else list.insertBefore(item, list.firstChild);
+}
 async function loadConversations() {
   const el = document.getElementById('convList');
   if (!el) return;
+  const seq = ++convSeq;
   try {
     const r = await api('/chat/conversations');
+    if (seq !== convSeq) return;
     const cs = r.conversations || [];
-    el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}" data-uid="${c.otherId || ''}" onclick="openChat(${c.id})">
+    el.innerHTML = cs.length ? cs.map(c => `<button class="conv-item ${c.id === CHAT_ID ? 'on' : ''}${c.pinned ? ' pinned' : ''}" data-id="${c.id}" data-uid="${c.otherId || ''}" onclick="openChat(${c.id})">
       <img src="${escapeHtml(c.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt="">
       <span class="meta"><b>${escapeHtml(c.name || 'Conversation')}${c.kind === 'admin_notice' ? ' <span class="bot-tag">Admin</span>' : ''}</b><small>${escapeHtml(c.last_message_preview || 'No messages yet')}</small></span>
-      ${c.online ? '<i class="dot"></i>' : ''}<span class="presence ${c.online ? 'on' : 'off'}">${c.online ? 'Online' : 'Offline'}</span>${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
+      ${c.online ? '<i class="dot"></i>' : ''}<span class="presence ${c.online ? 'on' : 'off'}">${c.online ? 'Online' : 'Offline'}</span><span class="msg-count" title="Total messages">${Number(c.message_count) || 0}</span>${c.unread ? `<span class="unread">${c.unread}</span>` : ''}
     </button>`).join('') : '<div class="msg-empty">Look now for a conversation</div>';
   } catch (e) { el.innerHTML = '<small style="color:#ea3943">' + escapeHtml(e.message) + '</small>'; }
 }
@@ -1150,7 +1172,7 @@ async function loadChatMessages(id) {
     pane.innerHTML = `<div class="msg-head">
       <button class="icon-btn" onclick="closeChatView()" aria-label="Back to Messenger" title="Back">${adaqIcon('back')}</button>
       <span class="chat-peer" data-uid="${conv.otherId || ''}"><img src="${escapeHtml(conv.avatar || '/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><i class="${conv.online ? 'on' : 'off'}"></i></span>
-      <b>${escapeHtml(conv.name || 'Conversation')}</b><small>${conv.online ? 'Online' : 'Offline'}</small></div>
+      <b>${escapeHtml(conv.name || 'Conversation')}</b><small>${conv.online ? 'Online' : 'Offline'} · ${Number(conv.message_count) || 0} message${Number(conv.message_count) === 1 ? '' : 's'}</small></div>
       <div id="typingNote" class="msg-note" style="display:none">typing...</div>
       <div class="msg-scroll" id="msgScroll">${list || `<div class="msg-day">${greetingFor(CHAT_ID)}</div>`}</div>
       <button class="btn btn-ghost" style="width:100%;font-size:11px" onclick="(()=>{const s=document.getElementById('msgScroll');if(s)s.scrollTop=s.scrollHeight})()">Scroll to latest</button>
@@ -1415,11 +1437,15 @@ window.addEventListener('online', async () => {
 });
 window.addEventListener('adaq:chat', e => {
   const t = e.detail;
-  if (t && t.type === 'chat_message' && t.data && t.data.conversation_id === CHAT_ID) {
-    sessionStorage.removeItem('greet_' + CHAT_ID);
-    loadChatMessages(CHAT_ID);
-    const st = LS('chat_settings', { sounds: false, online: true, receipts: true });
-    if (st.sounds === true) { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 720; o.start(); o.stop(a.currentTime + .12); } catch (x) {} }
+  if (t && t.type === 'chat_message' && t.data) {
+    applyLiveConversation(t.data);
+    loadConversations();
+    if (Number(t.data.conversation_id) === Number(CHAT_ID)) {
+      sessionStorage.removeItem('greet_' + CHAT_ID);
+      loadChatMessages(CHAT_ID);
+      const st = LS('chat_settings', { sounds: false, online: true, receipts: true });
+      if (st.sounds === true) { try { const a = new (window.AudioContext || window.webkitAudioContext)(), o = a.createOscillator(); o.connect(a.destination); o.frequency.value = 720; o.start(); o.stop(a.currentTime + .12); } catch (x) {} }
+    }
   }
   if (t && t.type === 'chat_typing') {
     const note = document.getElementById('typingNote');
