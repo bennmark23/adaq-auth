@@ -555,7 +555,9 @@ async function loadFriendStrip(){
   try{
     const j=await (await fetch('/api/presence',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}})).json();
     const me = 'u_' + String((typeof USER !== 'undefined' && USER && USER.id) || 0);
-    const members=(j.members||[]).filter(m=>m.id!==me); // admin first, then every user (online or offline); no bots
+    // User's List shows people only: no admin, no bots. Admin notices still
+    // appear in the Conversation list when the admin has messaged you.
+    const members=(j.members||[]).filter(m=>m.id!==me && m.type!=='admin' && m.type!=='bot');
     const item=m=>{
       const attr=m.type==='admin'?'data-admin="1"':(m.type==='bot'?'data-bot="1"':'data-uid="'+String(m.id||'').replace('u_','')+'"');
       return `<button class="friend-item" ${attr} title="${escapeHtml(m.name)}"><img src="${escapeHtml(m.avatar||'/default-avatar.svg')}" onerror="this.onerror=null;this.src='/default-avatar.svg'" alt=""><span>${escapeHtml(String(m.name).replace(/^(Mr\.|Mrs\.)\s*/,''))}</span>${m.type==='bot'?'<b class="bot-tag">Bot</b>':''}<small class="presence ${m.online?'on':'off'}">${m.online?'Online':'Offline'}</small><i class="dot ${m.online?'on':''}"></i></button>`;
