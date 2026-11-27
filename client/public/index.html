@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>ADAQ</title>
-<!-- VERSION: 2026-11-25-v65 -->
+<!-- VERSION: 2026-11-25-v66 -->
 <style>
 :root{--bg:#0b0e14;--card:#141a24;--bd:#232c3b;--tx:#e6e9ef;--mu:#8791a3;--g:#16c784;--r:#ea3943;--b:#3b82f6;--y:#f5a524}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -188,8 +188,8 @@ setTimeout(function(){document.documentElement.classList.remove('adaq-auth-pendi
 <nav id="nav"><button data-t="chart" class="on" title="Chart" aria-label="Chart"></button><button data-t="mk" title="Markets" aria-label="Markets"></button><button data-t="mm" title="Memes" aria-label="Memes"></button><button data-t="nw" title="Feed" aria-label="Feed"></button><button data-t="tr" title="Training" aria-label="Training"></button><button data-t="set" title="Settings" aria-label="Settings"></button><button data-t="admin" id="adminNavBtn" style="display:none" title="Admin Features" aria-label="Admin Features"></button></nav>
 </div>
 <script src="mqtt.min.js"></script>
-<script src="icons.js?v=65"></script>
-<script src="bubble.js?v=65"></script>
+<script src="icons.js?v=66"></script>
+<script src="bubble.js?v=66"></script>
 <script>
 const $=s=>document.querySelector(s),LS=(k,d)=>{try{const v=JSON.parse(sessionStorage.getItem(k));return v==null?d:v}catch(e){return d}},SV=(k,v)=>{if(k==='sym'&&String(v).indexOf('MEME:')===0)return;try{sessionStorage.setItem(k,JSON.stringify(v))}catch(e){}syncDirty(k);syChanged(k)};
 const SYNCK=['hist','paper','wallets','sym','tf','fh','rpc','na','nn','wa','csz','rr'];
@@ -976,7 +976,7 @@ if(BAD.includes(S.sym)){S.sym='BTCUSDT';SV('sym','BTCUSDT')}
 renderPos();load();chg();pollNews();loadSyms();if(S.src==='gt'){const p0=document.getElementById('pageTitle');if(p0)p0.textContent='Memes'}
 fetch('/api/config/limits',{headers:{authorization:'Bearer '+(sessionStorage.getItem('adaq_token')||'')}}).then(r=>r.json()).then(j=>{window.ADAQ_LIMITS=j;const v=document.getElementById('voiceMax');if(v)v.value=j.max_voice_seconds;const el=document.getElementById('uploadLimits');if(el)el.textContent='Max '+j.max_file_mb+' MB · voice up to '+j.max_voice_seconds+'s · images, PDF, TXT, DOCX'}).catch(()=>{});
 window.syncTradeLogs=syncTradeLogs;
-</script><link rel="stylesheet" href="auth.css?v=65">
+</script><link rel="stylesheet" href="auth.css?v=66">
 <div id="authOverlay" style="display:flex">
   <div class="card" id="loginBox">
     <div style="text-align:center;margin-bottom:8px">
@@ -1148,7 +1148,7 @@ function switchAdminTab(t){
   resetScroll();
 }
 </script>
-<script src="auth.js?v=65"></script>
+<script src="auth.js?v=66"></script>
 <section id="v-admin" hidden>
   <div class="tabbar">
     <button class="on" onclick="switchAdminTab2('bots')">Bots</button>

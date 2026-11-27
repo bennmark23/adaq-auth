@@ -562,13 +562,17 @@ async function loadFriendStrip(){
     };
     s.innerHTML='<div class="track">'+(members.length ? members.map(item).join('') : '<small class="muted">No one here yet.</small>')+'</div>';
     // Manual horizontal scroll: drag with mouse on desktop, native finger scroll on APK.
-    let dragging=false,x0=0,scroll0=0;
-    s.onpointerdown=e=>{if(e.pointerType==='touch')return;dragging=true;x0=e.clientX;scroll0=s.scrollLeft;s.setPointerCapture&&s.setPointerCapture(e.pointerId)};
-    s.onpointermove=e=>{if(dragging)s.scrollLeft=scroll0-(e.clientX-x0)};
-    s.onpointerup=()=>dragging=false;
-    s.onpointercancel=()=>dragging=false;
+    // No pointer capture: it can retarget the click to the strip and break profile taps.
+    let dragging=false,moved=false,x0=0,scroll0=0,downItem=null;
+    s.onpointerdown=e=>{moved=false;if(e.pointerType==='touch')return;dragging=true;downItem=e.target.closest&&e.target.closest('.friend-item');x0=e.clientX;scroll0=s.scrollLeft};
+    s.onpointermove=e=>{if(!dragging)return;if(Math.abs(e.clientX-x0)>4)moved=true;s.scrollLeft=scroll0-(e.clientX-x0)};
+    s.onpointerup=()=>{dragging=false};
+    s.onpointercancel=()=>{dragging=false};
     s.onclick=async e=>{
-      const b=e.target.closest('.friend-item');if(!b)return;
+      if(moved)return;
+      const under=document.elementFromPoint(e.clientX,e.clientY);
+      const b=(e.target.closest&&e.target.closest('.friend-item'))||(under&&under.closest&&under.closest('.friend-item'))||(downItem&&!moved?downItem:null);
+      if(!b)return;
       if(b.dataset.bot){alert('You cannot message a bot');return}
       if(b.dataset.admin){
         await openMessenger();
